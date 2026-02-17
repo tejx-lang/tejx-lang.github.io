@@ -46,8 +46,8 @@ const Documentation: React.FC = () => {
           <p className="text-xl text-gray-400 mb-8 leading-relaxed">
             TejX is a high-performance, single-threaded scripting language built
             on LLVM. It aims to provide the developer ergonomics of modern
-            scripting languages like Python/TypeScript while achieving the
-            execution speeds of native code.
+            scripting languages like TypeScript while achieving the execution
+            speeds of native code.
           </p>
 
           <div className="grid md:grid-cols-2 gap-6 mb-12">

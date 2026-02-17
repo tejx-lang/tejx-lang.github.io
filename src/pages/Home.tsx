@@ -31,12 +31,12 @@ const Home: React.FC = () => {
 
             <h1 className="text-5xl md:text-7xl font-black leading-[1.1] mb-6 tracking-tight">
               The Future of <br />
-              <span className="gradient-text">Modern Scripting</span>
+              <span className="gradient-text">Modern Programming</span>
             </h1>
 
             <p className="text-xl text-gray-400 mb-8 leading-relaxed max-w-lg">
               {APP_CONFIG.DESCRIPTION} Build high-performance applications with
-              the simplicity of Python and the speed of C.
+              the simplicity of TypeScript and the speed of C.
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -113,7 +113,7 @@ const Home: React.FC = () => {
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
             Experience the power of a systems language with the ergonomics of a
-            scripting language.
+            modern programming language.
           </p>
         </div>
 
@@ -123,29 +123,29 @@ const Home: React.FC = () => {
               icon: Zap,
               color: "text-purple-400",
               bg: "bg-purple-500/10 border-purple-500/20",
-              title: "Blazing Fast Execution",
-              desc: "TejX compiles directly to native machine code via LLVM, ensuring your applications run at near-C speeds without the overhead of a virtual machine.",
+              title: "Native Performance",
+              desc: "TejX is a compiled language that targets native machine code via LLVM, delivering C++ level performance with the ergonomics of TypeScript.",
             },
             {
               icon: Shield,
               color: "text-blue-400",
               bg: "bg-blue-500/10 border-blue-500/20",
-              title: "Memory Safety",
-              desc: "Our unique single-ownership model prevents data races and memory leaks at compile time, eliminating the need for a garbage collector.",
+              title: "Ownership Memory",
+              desc: "A unique ownership-based memory model ensures safety without a garbage collector, eliminating data races and memory leaks at compile time.",
             },
             {
               icon: Cpu,
               color: "text-green-400",
               bg: "bg-green-500/10 border-green-500/20",
-              title: "Modern Concurrency",
-              desc: "Built-in async/await primitives and a lightweight fiber-based runtime make writing concurrent code safe and intuitive.",
+              title: "Compiled & Multithreaded",
+              desc: "Built from the ground up for modern hardware, TejX supports efficient multithreading and parallel execution for maximum throughput.",
             },
             {
               icon: Code,
               color: "text-yellow-400",
               bg: "bg-yellow-500/10 border-yellow-500/20",
-              title: "Developer Ergonomics",
-              desc: "Enjoy modern features like pattern matching, optional chaining, and type inference without sacrificing performance.",
+              title: "TypeScript Syntax",
+              desc: "Write high-performance systems code using the syntax you already know. TypeScript-like types and patterns meet native power.",
             },
           ].map((feat, i) => (
             <motion.div

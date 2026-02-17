@@ -2,16 +2,15 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const CodeShowcase: React.FC = () => {
-  const codeSnippet = `// Simple, fast, and safe
-func fib(n: int) -> int {
-    if n <= 1 {
-        return n;
-    }
-    return fib(n - 1) + fib(n - 2);
-}
+  const codeSnippet = `import { parse, stringify } from "std:json";
 
-func main() {
-    print("Fibonacci(10): " + fib(10));
+function main() {
+    let x = 42;
+    let s = stringify(x);
+    print("Stringified x:", s);
+
+    let parsed = parse(s);
+    print("Parsed value (dummy 42 for now):", parsed);
 }`;
 
   return (
@@ -31,7 +30,7 @@ func main() {
         </div>
 
         {/* Code Content */}
-        <div className="p-6 overflow-x-auto">
+        <div className="p-6 overflow-x-auto min-h-[220px]">
           <pre className="font-mono text-sm leading-relaxed">
             <code className="text-gray-300">
               {codeSnippet.split("\n").map((line, i) => (
@@ -39,31 +38,58 @@ func main() {
                   <span className="text-gray-700 w-8 flex-shrink-0 select-none text-right pr-4">
                     {i + 1}
                   </span>
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: line
-                        .replace(
-                          /\b(func|return|if|else|let|const)\b/g,
-                          '<span class="text-purple-400 font-bold">$1</span>',
-                        )
-                        .replace(
-                          /\b(int|string|bool)\b/g,
-                          '<span class="text-yellow-400">$1</span>',
-                        )
-                        .replace(
-                          /("(?:[^"\\]|\\.)*")/g,
-                          '<span class="text-green-400">$1</span>',
-                        )
-                        .replace(
-                          /(\/\/.*)/g,
-                          '<span class="text-gray-500 italic">$1</span>',
-                        )
-                        .replace(
-                          /\b(main|fib|print)\b/g,
-                          '<span class="text-blue-400">$1</span>',
-                        ),
-                    }}
-                  />
+                  <span className="whitespace-pre">
+                    {(() => {
+                      const regex =
+                        /(\b(?:function|func|return|if|else|let|const|import|from|int|string|bool|void|main|add|print|parse|stringify)\b|"(?:[^"\\]|\\.)*"|\/\/.*)/g;
+                      const parts = line.split(regex);
+                      return parts.map((part, index) => {
+                        if (
+                          /^(function|func|return|if|else|let|const|import|from)$/.test(
+                            part,
+                          )
+                        ) {
+                          return (
+                            <span
+                              key={index}
+                              className="text-purple-400 font-bold"
+                            >
+                              {part}
+                            </span>
+                          );
+                        }
+                        if (/^(int|string|bool|void)$/.test(part)) {
+                          return (
+                            <span key={index} className="text-yellow-400">
+                              {part}
+                            </span>
+                          );
+                        }
+                        if (/^".*"$/.test(part)) {
+                          return (
+                            <span key={index} className="text-green-400">
+                              {part}
+                            </span>
+                          );
+                        }
+                        if (/^\/\/.*$/.test(part)) {
+                          return (
+                            <span key={index} className="text-gray-500 italic">
+                              {part}
+                            </span>
+                          );
+                        }
+                        if (/^(main|add|print|parse|stringify)$/.test(part)) {
+                          return (
+                            <span key={index} className="text-blue-400">
+                              {part}
+                            </span>
+                          );
+                        }
+                        return part;
+                      });
+                    })()}
+                  </span>
                 </div>
               ))}
             </code>

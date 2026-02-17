@@ -23,7 +23,7 @@ const Navbar: React.FC = () => {
           <img
             src={ASSETS.TEJX_LOGO}
             alt={APP_CONFIG.NAME}
-            className="w-8 h-8"
+            className="w-8 h-8 rounded-lg"
           />
           <span className="hidden sm:inline">{APP_CONFIG.NAME}</span>
         </Link>
