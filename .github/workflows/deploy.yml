@@ -35,6 +35,8 @@ jobs:
         run: yarn install
       - name: Build
         run: yarn build
+      - name: Copy index.html to 404.html
+        run: cp dist/index.html dist/404.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
