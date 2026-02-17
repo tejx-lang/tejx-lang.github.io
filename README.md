@@ -30,7 +30,7 @@ TejX is a high-performance, type-safe scripting language designed for humans and
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/praveenyadav/tejx-homepage.git
+   git clone https://github.com/tejx-lang/homepage.git
    cd tejx-homepage
    ```
 

@@ -32,7 +32,7 @@ The project is configured with a GitHub Actions workflow that automatically depl
     - Once the workflow completes successfully (turns green), your site will be live!
 
 4.  **Access your Site**:
-    - Your site will be available at `https://<your-username>.github.io/tejx-homepage/`.
+    - Your site will be available at `https://<your-username>.github.io/homepage/`.
 
 ## 🛠️ Configuration Details
 
@@ -42,7 +42,7 @@ In `vite.config.ts`, the `base` property is set to `'/tejx-homepage/'`. This ens
 
 ```typescript
 export default defineConfig({
-  base: "/tejx-homepage/",
+  base: "/homepage/",
   // ... other config
 });
 ```
