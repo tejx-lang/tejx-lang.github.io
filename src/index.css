@@ -60,9 +60,22 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
+
+  .docs-mode .nebula-bg {
+    animation: none;
+    opacity: 0.4;
+    filter: blur(120px);
+  }
+
+  .docs-mode .gradient-text {
+    background: transparent;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: #fff;
+    color: #fff;
+  }
 }
 
-/* Animations */
 @keyframes nebula {
   0% { transform: scale(1) translate(0, 0); }
   50% { transform: scale(1.1) translate(2%, 2%); }
@@ -81,4 +94,25 @@
     radial-gradient(circle at 70% 70%, rgba(59, 130, 246, 0.08) 0%, transparent 40%);
   filter: blur(80px);
   animation: nebula 20s ease-in-out infinite;
+}
+
+/* Scrollbar Styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.05);
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.1);
 }
