@@ -3,22 +3,33 @@ import Editor from "@monaco-editor/react";
 import { Play, RotateCcw, Terminal } from "lucide-react";
 import { compiler } from "../lib/compiler";
 
-const DEFAULT_CODE = `// Welcome to TejX Playground
-let user = "Alice";
-let score = 100;
+const DEFAULT_CODE = `function main() {
+    print("TejX Demo");
+    print("----------------------------");
 
-let message = \`User \${user} has a score of \${score}\`;
-print(message);
+    let x = 10;
+    let y = 5.5;
+    let sum = x + y;
+    print("Integer 10 + Float 5.5 =", sum);
 
-// Modern features
-let data: object = {
-  config: {
-    setting: "Enabled"
-  }
-};
+    let arr = [1, 2, 3];
+    arr.push(42);
+    print("Array support:", arr);
 
-let setting = data?.config?.setting ?? "Default";
-print("Setting: ", setting);
+    let obj = {
+        name: "TejX",
+        version: "0.1.0",
+        is_awesome: true
+    };
+    print("Object support:", obj);
+
+    if (sum > 10) {
+        print("Comparison logic: sum is greater than 10");
+    }
+
+    print("Success!");
+}
+
 `;
 
 interface PlaygroundProps {
@@ -29,6 +40,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [output, setOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [executionTime, setExecutionTime] = useState<string | null>(null);
 
   useEffect(() => {
     compiler.init();
@@ -36,7 +48,16 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
 
   const runCode = async () => {
     setIsRunning(true);
+    setExecutionTime(null);
+    const startTime = performance.now();
     const result = await compiler.compile(code);
+    const endTime = performance.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(3);
+
+    if (result.success) {
+      setExecutionTime(duration);
+    }
+
     setOutput(result.output);
     setIsRunning(false);
   };
@@ -44,6 +65,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
   const resetCode = () => {
     setCode(DEFAULT_CODE);
     setOutput([]);
+    setExecutionTime(null);
   };
 
   return (
@@ -137,6 +159,43 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               theme="vs-dark"
               value={code}
               onChange={(val) => setCode(val || "")}
+              onMount={(_editor, monaco) => {
+                // Disable TypeScript diagnostics that don't apply to TejX
+                monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
+                  {
+                    noSemanticValidation: true,
+                    noSyntaxValidation: false,
+                  },
+                );
+
+                // Declare TejX runtime globals and std library modules
+                monaco.languages.typescript.typescriptDefaults.addExtraLib(
+                  `
+                  declare function print(...args: any[]): void;
+                  declare function len(x: any): number;
+
+                  declare module 'std:math' {
+                    export function min(a: number, b: number): number;
+                    export function max(a: number, b: number): number;
+                    export function abs(x: number): number;
+                    export function pow(x: number, y: number): number;
+                    export function sqrt(x: number): number;
+                    export function floor(x: number): number;
+                    export function ceil(x: number): number;
+                    export function round(x: number): number;
+                    export function sin(x: number): number;
+                    export function cos(x: number): number;
+                    export function random(): number;
+                  }
+
+                  declare module 'std:json' {
+                    export function stringify(val: any): string;
+                    export function parse(str: string): any;
+                  }
+                  `,
+                  "filename/tejx-runtime.d.ts",
+                );
+              }}
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
@@ -163,24 +222,45 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
             fontSize: "13px",
             border: "1px solid var(--glass-border)",
             overflowY: "auto",
+            overflowX: "auto",
+            whiteSpace: "pre",
           }}
         >
           <div
             style={{
-              color: "#64748b",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "0.5rem",
-              textTransform: "uppercase",
-              fontSize: "10px",
-              letterSpacing: "1px",
             }}
           >
-            Output
+            <div
+              style={{
+                color: "#64748b",
+                textTransform: "uppercase",
+                fontSize: "10px",
+                letterSpacing: "1px",
+              }}
+            >
+              Output
+            </div>
+            {executionTime && (
+              <div
+                style={{
+                  color: "#10b981",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                }}
+              >
+                Time: {executionTime}s
+              </div>
+            )}
           </div>
           {output.map((line, i) => (
             <div
               key={i}
               style={{
-                color: line.startsWith("[") ? "#7c3aed" : "#fff",
+                color: line.startsWith("[Line") ? "#ef4444" : "#fff",
                 marginBottom: "0.2rem",
               }}
             >
