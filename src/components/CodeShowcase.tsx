@@ -9,7 +9,7 @@ function main() {
     let s = stringify(x);
     print("Stringified x:", s);
 
-    let parsed = parse(s);
+    let parsed:int = parse(s);
     print("Parsed value (dummy 42 for now):", parsed);
 }`;
 

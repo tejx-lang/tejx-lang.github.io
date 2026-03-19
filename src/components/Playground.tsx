@@ -18,7 +18,7 @@ const DEFAULT_CODE = `function main() {
 
     let obj = {
         name: "TejX",
-        version: "0.1.0",
+        version: "1.0.0",
         is_awesome: true
     };
     print("Object support:", obj);
@@ -95,12 +95,13 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
             onClick={resetCode}
-            className="btn-secondary"
+            className="btn-secondary transition-all active:scale-95 hover:text-white"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "0.4rem",
               color: "#94a3b8",
+              cursor: "pointer",
             }}
           >
             <RotateCcw size={16} /> Reset
@@ -108,7 +109,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
           <button
             onClick={runCode}
             disabled={isRunning}
-            className="btn-primary"
+            className="btn-primary transition-all active:scale-95 hover:brightness-110"
             style={{
               display: "flex",
               alignItems: "center",
@@ -118,6 +119,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               borderRadius: "12px",
               fontWeight: 600,
               opacity: isRunning ? 0.7 : 1,
+              cursor: isRunning ? "default" : "pointer",
             }}
           >
             <Play size={16} fill="white" /> {isRunning ? "Running..." : "Run"}

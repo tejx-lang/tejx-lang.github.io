@@ -2,14 +2,19 @@
 # TejX Compiler Installer
 # Usage: curl -fsSL https://tejx-lang.github.io/install.sh | sh
 #
-# Downloads the latest tejxc binary from GitHub Releases
-# and installs it to /usr/local/bin/tejxc
+# Downloads the latest TejX release from GitHub Releases
+# and installs it to ~/.tejx
 
 set -e
 
 REPO="tejx-lang/tejx"
 BINARY_NAME="tejxc"
-INSTALL_DIR="/usr/local/bin"
+RUNTIME_NAME="tejx_rt.a"
+TEJX_DIR="${TEJX_DIR:-$HOME/.tejx}"
+BIN_DIR="${TEJX_DIR}/bin"
+LIB_DIR="${TEJX_DIR}/lib"
+RUNTIME_DIR="${TEJX_DIR}/runtime"
+TMP_DIR=""
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -23,6 +28,14 @@ info()    { printf "${CYAN}➜${RESET} %s\n" "$1"; }
 success() { printf "${GREEN}✔${RESET} %s\n" "$1"; }
 warn()    { printf "${YELLOW}⚠${RESET} %s\n" "$1"; }
 error()   { printf "${RED}✖${RESET} %s\n" "$1"; exit 1; }
+
+cleanup() {
+    if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+
+trap cleanup 0 INT TERM
 
 # ── Detect OS & Architecture ──
 detect_platform() {
@@ -61,12 +74,62 @@ get_latest_version() {
     fi
 }
 
-# ── Download & Install ──
-install() {
+find_binary() {
+    FOUND="$(find "$TMP_DIR" -name "$BINARY_NAME" -type f 2>/dev/null | head -1)"
+    if [ -z "$FOUND" ]; then
+        error "Could not find ${BINARY_NAME} in the downloaded archive."
+    fi
+    printf "%s\n" "$FOUND"
+}
+
+find_runtime() {
+    FOUND="$(find "$TMP_DIR" -name "$RUNTIME_NAME" -type f 2>/dev/null | head -1)"
+    if [ -z "$FOUND" ]; then
+        error "Could not find ${RUNTIME_NAME} in the downloaded archive."
+    fi
+    printf "%s\n" "$FOUND"
+}
+
+find_stdlib_dir() {
+    # Prefer 'lib/' as seen in release structure
+    for DIR in \
+        "$TMP_DIR/lib" \
+        "$TMP_DIR/library" \
+        "$TMP_DIR/src/library"
+    do
+        if [ -d "$DIR" ] && [ -n "$(find "$DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]; then
+            printf "%s\n" "$DIR"
+            return 0
+        fi
+    done
+
+    # Final attempt: search for a 'lib' or 'library' folder
+    FOUND="$(find "$TMP_DIR" -type d \( -name 'lib' -o -name 'library' \) 2>/dev/null | while read -r DIR; do
+        if [ -n "$(find "$DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]; then
+            printf "%s\n" "$DIR"
+            break
+        fi
+    done)"
+
+    if [ -z "$FOUND" ]; then
+        error "Could not find the TejX standard library in the downloaded archive."
+    fi
+
+    printf "%s\n" "$FOUND"
+}
+
+prepare_directories() {
+    mkdir -p "$BIN_DIR" "$LIB_DIR" "$RUNTIME_DIR"
+
+    rm -f "${BIN_DIR}/${BINARY_NAME}"
+    rm -f "${RUNTIME_DIR}/${RUNTIME_NAME}"
+    find "$LIB_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; 2>/dev/null || true
+}
+
+install_release() {
     ASSET_NAME="tejxc-${PLATFORM}.tar.gz"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET_NAME}"
     TMP_DIR="$(mktemp -d)"
-    TMP_FILE="${TMP_DIR}/${BINARY_NAME}"
 
     info "Downloading TejX ${VERSION} for ${PLATFORM}..."
 
@@ -78,48 +141,45 @@ install() {
 
     tar -xzf "${TMP_DIR}/archive.tar.gz" -C "$TMP_DIR" 2>/dev/null || error "Failed to extract archive."
 
-    # Find the binary in extracted contents
-    if [ -f "${TMP_DIR}/tejxc" ]; then
-        TMP_FILE="${TMP_DIR}/tejxc"
-    elif [ -f "${TMP_DIR}/${BINARY_NAME}" ]; then
-        TMP_FILE="${TMP_DIR}/${BINARY_NAME}"
-    else
-        # Search for it
-        FOUND="$(find "$TMP_DIR" -name "tejxc" -type f 2>/dev/null | head -1)"
-        if [ -n "$FOUND" ]; then
-            TMP_FILE="$FOUND"
-        else
-            error "Could not find tejxc binary in the downloaded archive."
-        fi
-    fi
+    BINARY_PATH="$(find_binary)"
+    RUNTIME_PATH="$(find_runtime)"
+    STDLIB_PATH="$(find_stdlib_dir)"
 
-    chmod +x "$TMP_FILE"
+    prepare_directories
 
-    # Install to INSTALL_DIR (may need sudo)
-    if [ -w "$INSTALL_DIR" ]; then
-        mv "$TMP_FILE" "${INSTALL_DIR}/${BINARY_NAME}"
-    else
-        info "Installing to ${INSTALL_DIR} (requires sudo)..."
-        sudo mv "$TMP_FILE" "${INSTALL_DIR}/${BINARY_NAME}"
-    fi
-
-    rm -rf "$TMP_DIR"
+    cp "$BINARY_PATH" "${BIN_DIR}/${BINARY_NAME}"
+    chmod +x "${BIN_DIR}/${BINARY_NAME}"
+    cp "$RUNTIME_PATH" "${RUNTIME_DIR}/${RUNTIME_NAME}"
+    cp -R "${STDLIB_PATH}/." "$LIB_DIR/"
 }
 
 # ── Verify Installation ──
 verify() {
-    if command -v "$BINARY_NAME" > /dev/null 2>&1; then
+    if [ -x "${BIN_DIR}/${BINARY_NAME}" ] && [ -f "${RUNTIME_DIR}/${RUNTIME_NAME}" ]; then
+        PATH_BINARY="$(command -v "$BINARY_NAME" 2>/dev/null || true)"
+
+        # Cleanup unwanted files
+        find "$TEJX_DIR" -name ".DS_Store" -type f -delete 2>/dev/null || true
+
         success "TejX compiler installed successfully!"
         echo ""
         printf "  ${BOLD}Version:${RESET}  %s\n" "$VERSION"
-        printf "  ${BOLD}Binary:${RESET}   %s\n" "$(command -v $BINARY_NAME)"
+        printf "  ${BOLD}Home:${RESET}     %s\n" "$TEJX_DIR"
+        printf "  ${BOLD}Binary:${RESET}   %s\n" "${BIN_DIR}/${BINARY_NAME}"
+        printf "  ${BOLD}Stdlib:${RESET}   %s\n" "$LIB_DIR"
+        printf "  ${BOLD}Runtime:${RESET}  %s\n" "${RUNTIME_DIR}/${RUNTIME_NAME}"
         echo ""
+        if [ "$PATH_BINARY" != "${BIN_DIR}/${BINARY_NAME}" ]; then
+            warn "'${BIN_DIR}' is not in your PATH."
+            printf "  Add this to your shell config:\n"
+            printf "    ${BOLD}export PATH=\"\\$HOME/.tejx/bin:\\$PATH\"${RESET}\n"
+            echo ""
+        fi
         printf "  ${CYAN}Get started:${RESET}\n"
         printf "    ${BOLD}$${RESET} tejxc main.tx && ./main\n"
         echo ""
     else
-        warn "Installation completed but '${BINARY_NAME}' is not in your PATH."
-        warn "Add ${INSTALL_DIR} to your PATH, or move the binary manually."
+        error "Installation did not complete successfully."
     fi
 }
 
@@ -136,7 +196,7 @@ main() {
     get_latest_version
     info "Latest version: ${VERSION}"
 
-    install
+    install_release
     verify
 }
 

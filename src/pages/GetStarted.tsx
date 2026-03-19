@@ -61,8 +61,9 @@ const GetStarted: React.FC = () => {
                 Quick Install
               </h3>
               <p className="text-gray-400 text-sm max-w-2xl">
-                Universal installer for macOS & Linux. Single binary, zero
-                dependencies.
+                Universal installer for macOS & Linux. Installs the compiler,
+                runtime, and standard library into
+                <code className="text-purple-400"> ~/.tejx</code>.
               </p>
             </div>
             <div className="w-full max-w-xl">
@@ -71,6 +72,7 @@ const GetStarted: React.FC = () => {
                 command="curl -fsSL https://tejx-lang.github.io/install.sh | sh"
               />
             </div>
+
           </motion.div>
 
           {/* Step 2: Setup Project */}
@@ -131,7 +133,7 @@ function main() {
     let s = stringify(x);
     print("Stringified x:", s);
 
-    let parsed = parse(s);
+    let parsed:int = parse(s);
     print("Parsed value:", parsed);
 }`}
               </pre>

@@ -58,9 +58,10 @@ const Documentation: React.FC = () => {
             <p className="text-xl text-gray-400 mb-8 leading-relaxed max-w-3xl">
               TejX is built on the belief that code should be as expressive as
               JavaScript but as robust and predictable as a systems language. By
-              leveraging the **LLVM 18** infrastructure, TejX compiles directly
-              to optimized machine code, eliminating the overhead of interpreted
-              runtimes and garbage collections.
+              leveraging LLVM, TejX compiles ahead of time to optimized native
+              code with static module resolution, explicit
+              <code className="text-purple-400"> Optional&lt;T&gt;</code>, and a
+              runtime built around moving GC plus explicit root tracking.
             </p>
           </div>
 
@@ -75,8 +76,8 @@ const Documentation: React.FC = () => {
               },
               {
                 icon: Shield,
-                title: "Safety Without GC",
-                desc: "A strict ownership-based memory model prevents leaks and races at compile-time.",
+                title: "GC-Aware Safety",
+                desc: "A moving collector, explicit roots, and strict source-level typing keep nullable and runtime-managed values predictable.",
                 color: "text-blue-400",
                 bg: "bg-blue-500/10",
               },
@@ -139,10 +140,10 @@ const Documentation: React.FC = () => {
                     <tr className="border-t border-white/5">
                       <td className="p-3 font-bold text-purple-400">Memory</td>
                       <td className="p-3 italic text-gray-500">
-                        Garbage Collection (Pauses)
+                        Null-like ambiguity and hidden runtime behavior
                       </td>
                       <td className="p-3">
-                        Deterministic ARC (Automatic Ref Count)
+                        Moving GC with explicit roots and typed optionals
                       </td>
                     </tr>
                     <tr className="border-t border-white/5">
@@ -170,19 +171,19 @@ const Documentation: React.FC = () => {
             <div className="space-y-4">
               {[
                 {
-                  title: "Deterministic Execution",
+                  title: "Explicit Nullability",
                   content:
-                    "Resource cleanup happens the moment a variable goes out of scope. No unexpected pauses, just steady performance.",
+                    "TejX uses Optional<T> as the only nullable source-level type. There is no loose null/undefined union model.",
                 },
                 {
                   title: "Exhaustive Safety",
                   content:
-                    "From Option types to Result-based error handling, the compiler ensures you handle every possible state of your program.",
+                    "Argument counts, return types, object shapes, and optional narrowing are checked before code generation.",
                 },
                 {
                   title: "Zero-Cost Abstractions",
                   content:
-                    "Protocols and Extensions allow for high-level design patterns without the runtime performance penalties usually associated with them.",
+                    "Generics, fixed-size arrays, and standard-library helpers are lowered ahead of time instead of loaded dynamically at runtime.",
                 },
               ].map((p, i) => (
                 <div key={i} className="flex gap-4 group">
@@ -224,9 +225,10 @@ const Documentation: React.FC = () => {
       subsections: [
         { id: "variables", title: "Variable Scoping" },
         { id: "primitives", title: "Native Primitives" },
+        { id: "nullability", title: "Nullability" },
         { id: "strings", title: "String Manipulation" },
+        { id: "operators", title: "Operators" },
         { id: "control-flow", title: "Control Flow" },
-        { id: "templates", title: "Template Literals" },
       ],
       content: (
         <>
@@ -234,29 +236,31 @@ const Documentation: React.FC = () => {
             Language Basics
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            Get familiar with the core syntax and grammar of TejX.
+            TejX is strict by default: static types, explicit nullability, no
+            truthy or falsy coercion, and compile-time checked control flow.
           </p>
 
           <section id="variables" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">Variable Scoping</h3>
             <p className="text-gray-400 mb-4">
-              TejX uses Lexical Scoping and prevents "hoisting" behaviors common
-              in dynamic languages. Immutability is enforced at the hardware
-              level when using <code className="text-purple-400">const</code>.
+              TejX uses lexical scoping with explicit mutability. Use{" "}
+              <code className="text-purple-400">let</code> for mutable
+              bindings and <code className="text-purple-400">const</code> for
+              immutable ones.
             </p>
             <CodeBlock
               filename="scoping.tx"
               code={`function main() {
-    let x: int = 10; // Mutable variable
-    const Y: int = 20; // Immutable constant
+    let count: int = 10;
+    const LIMIT: int = 20;
 
     {
-        let x: int = 30; // Shadowing: this 'x' only exists in this block
-        print(x); // 30
+        let count: int = 30;
+        print(count);
     }
-    print(x); // 10
 
-    // Y = 30; // Error: Assignment to constant variable
+    print(count);
+    // LIMIT = 30; // Compile error
 }`}
             />
           </section>
@@ -264,17 +268,22 @@ const Documentation: React.FC = () => {
           <section id="primitives" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">Native Primitives</h3>
             <p className="text-gray-400 mb-4">
-              Unlike the generic "number" in JS, TejX provides precision types
-              mapping directly to CPU registers.
+              Unlike JavaScript&apos;s single <code>number</code> model, TejX
+              exposes source-level numeric and scalar types directly.
             </p>
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
               {[
                 { type: "int / int32", desc: "Standard 32-bit integer" },
+                { type: "int16", desc: "16-bit signed integer" },
                 { type: "int64", desc: "64-bit wide integer" },
-                { type: "float / f32", desc: "Single-precision decimal" },
-                { type: "f64", desc: "Double-precision decimal" },
+                { type: "int128", desc: "128-bit signed integer" },
+                { type: "float / float32", desc: "Single-precision decimal" },
+                { type: "float16", desc: "16-bit floating point" },
+                { type: "float64", desc: "Double-precision decimal" },
                 { type: "bool", desc: "Strict boolean (true/false)" },
+                { type: "char", desc: "Single character value" },
                 { type: "string", desc: "UTF-8 encoded sequence of chars" },
+                { type: "any", desc: "Dynamic escape hatch" },
               ].map((item, i) => (
                 <div
                   key={i}
@@ -287,32 +296,75 @@ const Documentation: React.FC = () => {
                 </div>
               ))}
             </div>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>
+                <code className="text-purple-400">bool</code> is the valid
+                boolean type name. <code>boolean</code> is not valid TejX
+                syntax.
+              </li>
+              <li>
+                <code className="text-purple-400">int</code> is an alias for{" "}
+                <code>int32</code>, and <code>float</code> is an alias for{" "}
+                <code>float32</code>.
+              </li>
+            </ul>
+          </section>
+
+          <section id="nullability" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Nullability</h3>
+            <p className="text-gray-400 mb-4">
+              <code className="text-purple-400">Optional&lt;T&gt;</code> is the
+              only nullable source-level type. There is no
+              <code className="text-purple-400"> T | None</code> union syntax
+              and no separate <code>undefined</code> model.
+            </p>
+            <CodeBlock
+              filename="optional.tx"
+              code={`function getUserName(id: int): Optional<string> {
+    if (id == 1) return "Alice";
+    return None;
+}
+
+function main() {
+    let user: Optional<string> = getUserName(2);
+    let fallback: Optional<int>;
+
+    if (user != None) {
+        print("Length: ", user.length());
+    }
+
+    print(user?.length());
+    print(fallback == None);
+}`}
+            />
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>Optional declarations may be left uninitialized; they default to <code className="text-purple-400">None</code>.</li>
+              <li>Non-optional typed declarations must be initialized at declaration time.</li>
+            </ul>
           </section>
 
           <section id="operators" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">Operators</h3>
             <p className="text-gray-400 mb-4">
-              Full suite of arithmetic, relational, and logical operators.
+              Arithmetic, comparison, and logical operators are fully typed.
+              Runtime inspection is available through{" "}
+              <code className="text-purple-400">typeof</code>.
             </p>
             <CodeBlock
               code={`function main() {
-    // Arithmetic
     let sum = 10 + 5;
     let diff = 10 - 5;
     let prod = 10 * 5;
     let quot = 10 / 2;
     let mod = 10 % 3;
 
-    // Compound Assignment
     let x = 10;
-    x += 5; // 15
-    x *= 2; // 30
+    x += 5;
+    x *= 2;
 
-    // Logical
     let res = (x > 10) && (x < 100);
     let isValid = !res || true;
 
-    // Type Check
     if (typeof(x) == "int") {
         print("x is an integer");
     }
@@ -323,23 +375,17 @@ const Documentation: React.FC = () => {
           <section id="strings" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">String Manipulation</h3>
             <p className="text-gray-400 mb-4">
-              Strings in TejX are UTF-8 encoded and provide a range of built-in
-              methods for manipulation and inspection.
+              Strings are UTF-8 managed runtime values with familiar helper
+              methods from the core library.
             </p>
             <CodeBlock
               filename="strings_demo.tx"
               code={`function main() {
     let s = "  TejX Systems Programming  ";
 
-    // Length and indexing
-    print("Length: ", s.length);
-    print("Char at 2: ", s.at(2)); // "T"
-
-    // Search and extract
-    print("Index of 'Systems': ", s.indexOf("Systems"));
-    print("Substring: ", s.substring(2, 6)); // "TejX"
-
-    // Transformation
+    print("Length: ", s.length());
+    print("Char at 2: ", s[2]);
+    print("Substring: ", s.substring(2, 6));
     print("Upper: ", s.toUpper());
     print("Lower: ", s.toLower());
     print("Trimmed: [", s.trim(), "]");
@@ -350,7 +396,11 @@ const Documentation: React.FC = () => {
           <section id="control-flow">
             <h3 className="text-2xl font-bold mb-4">Control Flow</h3>
             <p className="text-gray-400 mb-4">
-              Comprehensive control structures for program logic.
+              Core flow control is intentionally small and explicit:{" "}
+              <code className="text-purple-400">if</code>,{" "}
+              <code className="text-purple-400">while</code>, C-style{" "}
+              <code className="text-purple-400">for</code>, and{" "}
+              <code className="text-purple-400">try/catch/finally</code>.
             </p>
 
             <h4 className="text-lg font-bold mb-2 text-purple-300">
@@ -367,37 +417,42 @@ const Documentation: React.FC = () => {
     } else {
         print("Grade: C");
     }
-
-    // Switch Statement
-    switch (score) {
-        case 100: print("Perfect!"); break;
-        case 0: print("Failed"); break;
-        default: print("Score is ", score);
-    }
 }`}
             />
 
             <h4 className="text-lg font-bold mb-2 text-purple-300">Loops</h4>
             <CodeBlock
               code={`function main() {
-    // C-Style For Loop
     for (let i = 0; i < 5; i++) {
-        if (i == 2) continue; // Skip 2
-        if (i == 4) break;    // Stop at 4
+        if (i == 2) continue;
+        if (i == 4) break;
         print("i: ", i);
     }
 
-    // While Loop
     let j = 0;
     while (j < 3) {
         print("j: ", j);
         j++;
     }
+}`}
+            />
+            <h4 className="text-lg font-bold mb-2 text-purple-300">
+              Error Flow
+            </h4>
+            <CodeBlock
+              code={`function risky(flag: bool): void {
+    if (!flag) {
+        throw "bad state";
+    }
+}
 
-    // For-Of Loop (Iterables)
-    let items = [10, 20, 30];
-    for (let item of items) {
-        print("Item: ", item);
+function main() {
+    try {
+        risky(false);
+    } catch (err) {
+        print(err);
+    } finally {
+        print("cleanup");
     }
 }`}
             />
@@ -416,9 +471,11 @@ const Documentation: React.FC = () => {
               runCommand="tejx run basics_demo.tx"
               code={`function main() {
     let name = "TejX User";
+    let nickname: Optional<string>;
     let score = 95;
 
     print("Hello, ", name);
+    print("Nickname set? ", nickname != None);
 
     if (score > 90) {
         print("Rank: S");
@@ -426,9 +483,7 @@ const Documentation: React.FC = () => {
         print("Rank: A");
     }
 
-    print("Counting down:");
-    // C-style loop
-    for(let i = 3; i > 0; i--) {
+    for (let i = 3; i > 0; i--) {
         print(i);
     }
 }`}
@@ -443,8 +498,9 @@ const Documentation: React.FC = () => {
       icon: Box,
       subsections: [
         { id: "type-aliases", title: "Type Aliases" },
-        { id: "option-types", title: "Option<T> & Null Safety" },
-        { id: "structural-typing", title: "Structural Typing" },
+        { id: "option-types", title: "Optional<T> & Narrowing" },
+        { id: "structural-typing", title: "Structural Objects" },
+        { id: "inference-generics", title: "Generics & Inference" },
       ],
       content: (
         <>
@@ -452,8 +508,8 @@ const Documentation: React.FC = () => {
             Advanced Type System
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            TejX features a sophisticated type system designed for maximum
-            safety and zero runtime overhead.
+            TejX keeps the source type system explicit: strict object shapes,
+            opt-in nullability, typed functions, and conservative inference.
           </p>
 
           <section id="type-aliases" className="mb-12">
@@ -481,31 +537,93 @@ function main() {
 
           <section id="option-types" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">
-              Option&lt;T&gt; & Null Safety
+              Optional&lt;T&gt; & Narrowing
             </h3>
             <p className="text-gray-400 mb-4">
-              TejX eliminates "Null Pointer Exceptions" by using the{" "}
-              <code className="text-purple-400">Option</code> type. A value is
-              either <code className="text-purple-400">Some(value)</code> or{" "}
-              <code className="text-purple-400">None</code>.
+              <code className="text-purple-400">Optional&lt;T&gt;</code> is the
+              only nullable source-level type. To use an optional as a concrete
+              value, first narrow it with an explicit{" "}
+              <code className="text-purple-400">!= None</code> check or use
+              optional chaining.
             </p>
             <CodeBlock
               filename="options.tx"
-              code={`function findUser(id: int): Option<string> {
-    if (id == 1) return Some("Alice");
+              code={`function findUser(id: int): Optional<string> {
+    if (id == 1) return "Alice";
     return None;
 }
 
 function main() {
-    let user = findUser(2);
+    let user: Optional<string> = findUser(2);
 
-    // Optional Chaining
-    let len = user?.length; 
+    if (user != None) {
+        print("Found: ", user);
+    }
 
-    // Nullish Coalescing
-    let name = user ?? "Guest";
+    print(user?.length());
+}`}
+            />
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>
+                <code className="text-purple-400">Option&lt;T&gt;</code> is not
+                the supported spelling. Use{" "}
+                <code className="text-purple-400">Optional&lt;T&gt;</code>.
+              </li>
+              <li>
+                Member access, indexing, and <code>instanceof</code> checks on
+                optional values require narrowing first unless you use{" "}
+                <code className="text-purple-400">?.</code>.
+              </li>
+            </ul>
+          </section>
 
-    print("Hello, ", name);
+          <section id="structural-typing" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Structural Objects</h3>
+            <p className="text-gray-400 mb-4">
+              Structural object types are checked by shape. Extra unexpected
+              properties are rejected, and object-typed variables must be
+              initialized when declared.
+            </p>
+            <CodeBlock
+              filename="structural.tx"
+              code={`type Point = { x: int; y: int };
+
+function main() {
+    let p: Point = { x: 1, y: 2 };
+    print(p.x, p.y);
+
+    // let bad: Point = { x: 1, y: 2, z: 3 }; // Compile error
+}`}
+            />
+          </section>
+
+          <section id="inference-generics" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Generics & Inference</h3>
+            <p className="text-gray-400 mb-4">
+              Generic functions and classes are fully supported, but inference is
+              intentionally conservative. Empty arrays still need a target type,
+              and missing initializers do not imply optionality.
+            </p>
+            <CodeBlock
+              filename="generics.tx"
+              code={`function identity<T>(value: T): T {
+    return value;
+}
+
+class Box<T> {
+    value: T;
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+function main() {
+    let n = identity(10);
+    let name = identity("tejx");
+    let box = new Box<int>(42);
+    let xs: int[] = [];
+
+    print(n, name, box.value, xs.length());
 }`}
             />
           </section>
@@ -521,26 +639,23 @@ function main() {
             <CodeBlock
               filename="types_pro.tx"
               runCommand="tejx run types_pro.tx"
-              code={`type User = { id: int, name: string };
+              code={`type User = { id: int; name: string };
 
-function getUser(id: int): Option<User> {
-    if (id == 42) return Some({ id: 42, name: "Douglas" });
+function getUser(id: int): Optional<User> {
+    if (id == 42) return { id: 42, name: "Douglas" };
     return None;
 }
 
 function main() {
     let user = getUser(42);
-    
-    // Pattern matching is the best way to handle Options (see next section)
+
     if (user != None) {
         print("Found: ", user.name);
     } else {
         print("User not found");
     }
-    
-    // Using nullish coalescing for defaults
-    let display = user?.name ?? "Anonymous";
-    print("Welcome, ", display);
+
+    print(user?.name);
 }`}
             />
           </section>
@@ -549,11 +664,12 @@ function main() {
     },
     {
       id: "functions",
-      title: "Functions & Ownership",
+      title: "Functions & Generics",
       icon: Zap,
       subsections: [
-        { id: "func-basics", title: "Basics" },
-        { id: "func-ownership", title: "Ownership & Moves" },
+        { id: "func-basics", title: "Typed Functions" },
+        { id: "func-signatures", title: "Function Types" },
+        { id: "func-generics", title: "Generic Functions" },
         { id: "func-entry", title: "Entry Point" },
       ],
       content: (
@@ -565,59 +681,69 @@ function main() {
             Functions
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            First-class functions with support for lambdas and closures.
+            Functions are fully typed. Parameter counts, argument types, return
+            types, and higher-order function signatures are validated at compile
+            time.
           </p>
           <div className="mb-6">
             <CodeBlock
               filename="functions.tx"
-              code={`// Named Function with Return Type
+              code={`// Named function with explicit return type
 function add(a: int, b: int): int {
     return a + b;
 }
 
-// Higher-Order Functions
+// Higher-order function
 function process(val: int, op: (n: int) => int): int {
     return op(val);
 }
 
-// Closures
-function makeAdder(base: int): (n: int) => int {
-    return (n: int) => base + n;
-}
-
 function main() {
-    // Arrow Functions (Lambdas)
     let square = (x: int) => x * x;
-
     print("Add: ", add(10, 20));
     print("Process: ", process(5, square));
-
-    let add5 = makeAdder(5);
-    print("Add5: ", add5(10)); // 15
 }`}
             />
           </div>
 
-          <section id="func-ownership" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">
-              Ownership & Move Semantics
-            </h3>
+          <section id="func-signatures" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Function Types</h3>
             <p className="text-gray-400 mb-4">
-              To achieve C++ performance without GC, TejX uses an ownership
-              model. When you pass a non-primitive value to a function,
-              ownership is **moved** by default.
+              Function values can be passed around just like other typed values.
+              Use explicit function signatures for callbacks and model trailing
+              optional parameters with{" "}
+              <code className="text-purple-400">Optional&lt;T&gt;</code>.
             </p>
             <CodeBlock
-              filename="ownership.tx"
-              code={`function takeOwnership(s: string): void {
-    print("Received: ", s);
-} // 's' is dropped here
+              filename="callbacks.tx"
+              code={`function runTwice(value: int, op: (n: int) => int): int {
+    return op(op(value));
+}
 
 function main() {
-    let data: string = "Important Data";
-    takeOwnership(data);
-    
-    // print(data); // Error: 'data' was moved to takeOwnership
+    let increment = (n: int) => n + 1;
+    print(runTwice(10, increment));
+}`}
+            />
+          </section>
+
+          <section id="func-generics" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Generic Functions</h3>
+            <p className="text-gray-400 mb-4">
+              Generic functions and generic classes follow the same syntax. The
+              compiler tracks concrete instantiations during semantic analysis
+              and lowering.
+            </p>
+            <CodeBlock
+              filename="identity.tx"
+              code={`function identity<T>(value: T): T {
+    return value;
+}
+
+function main() {
+    let n = identity(10);
+    let s = identity("tejx");
+    print(n, s);
 }`}
             />
           </section>
@@ -637,8 +763,8 @@ function main() {
     return a + b;
 }
 
-function process(n: int, op: (x: int) => int):int {
-    return op(n);
+function process<T>(value: T, op: (x: T) => T): T {
+    return op(value);
 }
 
 function main() {
@@ -681,71 +807,56 @@ function main() {
             Data Structures
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            Efficient primitives and standard collections.
+            TejX supports strict array forms, structural objects, and generic
+            collections in the standard library.
           </p>
 
           <section id="arrays" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">Arrays</h3>
             <p className="text-gray-400 mb-4">
-              Dynamic, growable arrays with a rich standard library of methods.
+              Dynamic arrays and fixed-size arrays are distinct source-level
+              types. Empty array literals need an explicit target type.
             </p>
             <CodeBlock
               code={`function main() {
-    // Creation
     let numbers: int[] = [1, 2, 3];
-    let names = ["Alice", "Bob"];
+    let board: int[4] = [];
+    let names: string[] = [];
 
-    // Access & Mutation
     let first = numbers[0];
     numbers[1] = 99;
+    numbers.push(4);
+    let last = numbers.pop();
 
-    // Methods
-    numbers.push(4);             // Append: [1, 99, 3, 4]
-    let last = numbers.pop();    // Remove last: 4
-    let len = numbers.length;    // Property: 3
-    let idx = numbers.indexOf(99); // 1
-    let part = numbers.slice(0, 2); // [1, 99]
-
-    // Functional Methods
-    let doubled = numbers.map((x: int) => x * 2);
-    let evens = numbers.filter((x: int) => x % 2 == 0);
-    numbers.forEach((x: int) => print(x));
-
-    print("Length: ", numbers.length);
-    print("Doubled[0]: ", doubled[0]);
+    print(first);
+    print(last);
+    print(numbers.length());
+    print(board[0]);
+    print(names.length());
 }`}
             />
           </section>
 
           <section id="structs-obj" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">
-              Structs (Anonymous Objects)
+              Structural Objects
             </h3>
             <p className="text-gray-400 mb-4">
-              Lightweight data structures for organizing related data.
+              Object literals are shape-checked against their declared types and
+              work well for lightweight data records.
             </p>
             <CodeBlock
-              code={`function main() {
-    // Object Literal
-    let user = {
-        id: 1,
-        name: "TejX",
-        metadata: {
-            role: "admin",
-            active: true
-        }
-    };
+              code={`type User = { id: int; name: string };
 
-    // Access
+function main() {
+    let user: User = { id: 1, name: "TejX" };
     print("User: ", user.name);
-    print("Role: ", user.metadata.role);
 
-    // Array of Objects
-    let users = [
+    let users: User[] = [
         { id: 1, name: "A" },
         { id: 2, name: "B" }
     ];
-    print("Users count: ", users.length);
+    print("Users count: ", users.length());
 }`}
             />
           </section>
@@ -761,33 +872,29 @@ function main() {
               code={`import { Stack, Queue, Map, Set } from "std:collections";
 
 function main() {
-    // Stack (LIFO)
     let s = new Stack<int>();
     s.push(10);
     s.push(20);
-    print("Pop Stack: ", s.pop()); // 20
+    print("Pop Stack: ", s.pop());
 
-    // Queue (FIFO)
     let q = new Queue<string>();
     q.enqueue("Task 1");
     print("Dequeue: ", q.dequeue());
 
-    // Map (Key-Value)
     let config = new Map<string, int>();
-    config.put("port", 8080);
-    config.put("timeout", 1000);
-    print("Port: ", config.at("port"));
+    config.set("port", 8080);
+    config.set("timeout", 1000);
+    print("Port: ", config.get("port"));
     print("Has timeout: ", config.has("timeout"));
-    config.remove("timeout");
+    config.delete("timeout");
     print("Size: ", config.size());
 
-    // Set (Unique Values)
     let unique = new Set<int>();
     unique.add(1);
-    unique.add(1); // Duplicate ignored
+    unique.add(1);
     print("Has 1: ", unique.has(1));
-    unique.remove(1);
-    print("Set Size: ", unique.size()); // 0
+    unique.delete(1);
+    print("Set Size: ", unique.size());
     unique.clear();
 }`}
             />
@@ -807,21 +914,18 @@ function main() {
               code={`import { Stack, Map } from "std:collections";
 
 function main() {
-    // Array
-    let nums = [10, 20, 30];
+    let nums: int[] = [10, 20, 30];
     nums.push(40);
-    print("Array[3]: ", nums[3]);
+    print("Array len: ", nums.length());
 
-    // Stack
     let s = new Stack<string>();
     s.push("First");
     s.push("Second");
     print("Pop Stack: ", s.pop());
 
-    // Map
     let scores = new Map<string, int>();
-    scores.put("Alice", 100);
-    print("Alice Score: ", scores.at("Alice"));
+    scores.set("Alice", 100);
+    print("Alice Score: ", scores.get("Alice"));
 }`}
             />
           </section>
@@ -953,16 +1057,28 @@ function main() {
       id: "modules",
       title: "Modules",
       icon: Package,
-      subsections: [{ id: "imports", title: "Imports & Exports" }],
+      subsections: [
+        { id: "imports", title: "Import Forms" },
+        { id: "resolution", title: "Resolution Rules" },
+        { id: "core-imports", title: "Implicit Core Imports" },
+      ],
       content: (
         <>
           <h2 className="text-4xl font-black mb-6 tracking-tight">Modules</h2>
           <p className="text-xl text-gray-400 mb-8">
-            Organize code into reusable files.
+            TejX uses a static, compile-time module system. Imports are
+            resolved during lowering and merged into the active compilation unit
+            before code generation.
           </p>
 
-          <section id="imports">
-            <h3 className="text-2xl font-bold mb-4">Imports & Exports</h3>
+          <section id="imports" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Import Forms</h3>
+            <p className="text-gray-400 mb-4">
+              TejX supports relative imports, <code>std:</code> imports, named
+              imports, aliases, and default exports. If a relative import omits
+              <code className="text-purple-400">.tx</code>, the compiler adds
+              it automatically.
+            </p>
             <CodeBlock
               filename="math.tx"
               code={`// Named Export
@@ -980,11 +1096,53 @@ export default function multiply(a: int, b: int): int {
             />
             <CodeBlock
               filename="main.tx"
-              code={`import mul, { add, PI } from "./math.tx";
+              code={`import mul, { add, PI } from "./math";
+import { now } from "std:time";
+import std:fs;
 
-print(add(10, 20));
-print(mul(5, 5));`}
+function main() {
+    print(add(10, 20));
+    print(mul(5, 5));
+    print(now() > 0);
+    print(fs.existsSync("main.tx"));
+}`}
             />
+          </section>
+
+          <section id="resolution" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Resolution Rules</h3>
+            <p className="text-gray-400 mb-4">
+              Standard-library imports are resolved from the configured stdlib
+              root in this order:
+            </p>
+            <ol className="space-y-2 text-sm text-gray-400 list-decimal list-inside mb-4">
+              <li><code className="text-purple-400">--stdlib-path &lt;path&gt;</code></li>
+              <li>local project <code className="text-purple-400">lib/</code></li>
+              <li>installed SDK under <code className="text-purple-400">$HOME/.tejx/lib</code></li>
+            </ol>
+            <p className="text-gray-400 mb-4">
+              Relative imports resolve from the importing file&apos;s directory.
+              The compiler canonicalizes module paths and reports diagnostics
+              against the original source file.
+            </p>
+          </section>
+
+          <section id="core-imports" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Implicit Core Imports</h3>
+            <p className="text-gray-400 mb-4">
+              Normal source files automatically receive core helpers before user
+              imports are resolved. This is why common array and string helpers
+              are available without manual imports.
+            </p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-sm text-gray-300 font-mono">
+              <div>core/prelude.tx</div>
+              <div>core/array.tx</div>
+              <div>core/string.tx</div>
+            </div>
+            <p className="text-gray-400 mt-4">
+              Circular dependencies are detected during module resolution, and a
+              file is processed only once per canonical path.
+            </p>
           </section>
 
           <section
@@ -999,18 +1157,13 @@ print(mul(5, 5));`}
               filename="modules_demo.tx"
               runCommand="tejx run modules_demo.tx"
               code={`// --- file: math_utils.tx ---
-// export function double(n: int):int { return n * 2; }
+export function double(n: int): int { return n * 2; }
 
 // --- file: modules_demo.tx ---
-import { double } from "./math_utils.tx";
+import { double } from "./math_utils";
 
 function main() {
-    // Assuming math_utils.tx exists
-    // print("Double 10: ", double(10));
-    
-    // For this single-file demo, we simulate logic:
-    print("Module system allows splitting code.");
-    print("Use 'import' to bring in exported functions.");
+    print("Double 10: ", double(10));
 }`}
             />
           </section>
@@ -1021,7 +1174,11 @@ function main() {
       id: "memory",
       title: "Memory Model",
       icon: Layers,
-      subsections: [{ id: "memory-rules", title: "Ownership Rules" }],
+      subsections: [
+        { id: "memory-rules", title: "Runtime Value Model" },
+        { id: "gc-model", title: "Garbage Collection" },
+        { id: "root-tracking", title: "Root Tracking" },
+      ],
       content: (
         <>
           <h2
@@ -1031,153 +1188,184 @@ function main() {
             Memory Model
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            Predictable resource management through single-ownership.
+            The current TejX runtime uses a moving garbage collector with
+            explicit root tracking. Older ownership-only notes have been
+            replaced by this model.
           </p>
-          <p className="text-gray-300 mb-6 leading-relaxed">
-            TejX avoids the pauses associated with Garbage Collection by using a
-            strictly defined ownership system. Every object has exactly one
-            owner at any given time.
-          </p>
-          <div className="glass-card p-8 border-purple-500/20 mb-8 overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Shield size={120} />
+          <section className="mb-12">
+            <p className="text-gray-300 mb-6 leading-relaxed">
+              Runtime-managed values move through 64-bit slots. Heap-managed
+              references are encoded as tagged handles, and{" "}
+              <code className="text-purple-400">None</code> is represented as
+              zero in nullable and dynamic contexts.
+            </p>
+            <div className="glass-card p-8 border-purple-500/20 overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-5">
+                <Shield size={120} />
+              </div>
+              <h4 className="text-xl font-bold mb-4">Heap Layout</h4>
+              <ul className="space-y-3 text-gray-400 text-sm">
+                <li>Eden / young generation</li>
+                <li>two survivor spaces</li>
+                <li>old generation</li>
+                <li>large object space</li>
+              </ul>
             </div>
-            <h4 className="text-xl font-bold mb-4">Ownership Rules</h4>
-            <ul className="space-y-4 text-gray-400">
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  1
-                </span>
-                <span>
-                  Each value in TejX has a variable that’s called its{" "}
-                  <strong>owner</strong>.
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  2
-                </span>
-                <span>There can only be one owner at a time.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  3
-                </span>
-                <span>
-                  When the owner goes out of scope, the value will be{" "}
-                  <strong>dropped</strong> (freed).
-                </span>
-              </li>
+          </section>
+
+          <section id="gc-model" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Garbage Collection</h3>
+            <p className="text-gray-400 mb-4">
+              Minor GC copies live young objects into survivor space and
+              promotes long-lived values. Major GC marks, updates, compacts, and
+              sweeps old-generation objects.
+            </p>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>Old-to-young references are tracked with a card-table write barrier.</li>
+              <li>Pointer arrays and non-pointer arrays are scanned differently for correctness and performance.</li>
+              <li>Large objects bypass the normal young-generation path and move into LOS.</li>
             </ul>
-          </div>
+          </section>
+
+          <section id="root-tracking" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Root Tracking</h3>
+            <p className="text-gray-400 mb-4">
+              Because the collector moves objects, the runtime relies on
+              explicit roots instead of stack walking.
+            </p>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>thread-local shadow stacks</li>
+              <li>static roots</li>
+              <li>task queue entries</li>
+              <li>global handles used by async runtime bridges</li>
+            </ul>
+            <p className="text-gray-400 mt-4">
+              This is also how async work remains safe across collections:
+              background operations keep stable handles, and resumed callbacks
+              resolve the moved object through the handle table.
+            </p>
+          </section>
+
         </>
       ),
     },
     {
       id: "oop",
-      title: "Object-Oriented Programming",
+      title: "Classes & Interfaces",
       icon: Box,
       subsections: [
         { id: "oop-basics", title: "Classes & Inheritance" },
-        { id: "protocols", title: "Protocols (Interfaces)" },
-        { id: "extensions", title: "Type Extensions" },
-        { id: "access-control", title: "Access Control" },
+        { id: "protocols", title: "Interfaces" },
+        { id: "extensions", title: "Runtime Checks" },
+        { id: "access-control", title: "Structural vs Nominal" },
       ],
       content: (
         <>
           <h2 className="text-4xl font-black mb-6 tracking-tight">
-            Object-Oriented Programming
+            Classes & Interfaces
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            Modern OOP with strict contracts, traits, and powerful extensions.
+            TejX supports both structural object types and nominal classes.
+            Interfaces define method contracts, while runtime inspection uses
+            <code className="text-purple-400"> typeof</code> and{" "}
+            <code className="text-purple-400">instanceof</code>.
           </p>
 
           <section id="oop-basics" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">Classes & Inheritance</h3>
             <p className="text-gray-400 mb-4">
-              Single inheritance with support for abstract base classes and
-              automatic method dispatching.
+              Classes are nominal runtime values and support inheritance.
             </p>
             <CodeBlock
               filename="oop.tx"
-              code={`abstract class Animal {
-    name: string;
-    constructor(name: string) { this.name = name; }
-    abstract makeSound(): void;
+              code={`class Animal {
+    speak(): string { return "noise"; }
 }
 
 class Dog extends Animal {
-    makeSound(): void { print(this.name, " says Woof!"); }
+    speak(): string { return "bark"; }
 }
 
 function main() {
-    let d = new Dog("Buddy");
-    d.makeSound();
+    let d = new Dog();
+    print(d.speak());
 }`}
             />
           </section>
 
           <section id="protocols" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Protocols (Interfaces)</h3>
+            <h3 className="text-2xl font-bold mb-4">Interfaces</h3>
             <p className="text-gray-400 mb-4">
-              Protocols define strict contracts. Unlike structural typing,
-              Protocols are nominally checked for robustness.
+              Interfaces define required method shapes and class contracts.
             </p>
             <CodeBlock
-              filename="protocols.tx"
-              code={`protocol Drawable {
-    draw(): void;
+              filename="interfaces.tx"
+              code={`interface Greeter {
+    greet(name: string): string;
 }
 
-class Circle implements Drawable {
-    draw(): void { print("Drawing Circle"); }
+class Robot implements Greeter {
+    greet(name: string): string {
+        return "Hello, " + name;
+    }
 }
 
-function render(item: Drawable): void {
-    item.draw();
+function welcome(item: Greeter): void {
+    print(item.greet("TejX"));
 }
 
 function main() {
-    let c = new Circle();
-    render(c);
+    let bot = new Robot();
+    welcome(bot);
 }`}
             />
           </section>
 
           <section id="extensions" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Type Extensions</h3>
+            <h3 className="text-2xl font-bold mb-4">Runtime Checks</h3>
             <p className="text-gray-400 mb-4">
-              Add new functionality to existing types (even primitives) without
-              modifying their original source.
+              <code className="text-purple-400">typeof(value)</code> returns
+              the runtime type name, and <code>instanceof</code> checks class
+              relationships. Narrow optionals before using{" "}
+              <code>instanceof</code>.
             </p>
             <CodeBlock
-              filename="extensions.tx"
-              code={`extension string {
-    function greet(): void {
-        print("Hello, " + this);
-    }
-}
+              filename="runtime_checks.tx"
+              code={`class Animal {}
+class Dog extends Animal {}
 
 function main() {
-    "User".greet(); // Hello, User
+    let value: Optional<Animal> = new Dog();
+
+    if (value != None && value instanceof Dog) {
+        print("dog");
+    }
+
+    print(typeof(value));
 }`}
             />
           </section>
 
           <section id="access-control" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Access Control</h3>
+            <h3 className="text-2xl font-bold mb-4">Structural vs Nominal</h3>
             <p className="text-gray-400 mb-4">
-              TejX supports standard access modifiers to ensure encapsulation.
+              Structural objects are checked by shape, while classes are nominal
+              entities with identity and methods.
             </p>
             <CodeBlock
-              code={`class SecureBank {
-    public id: int;
-    private balance: float;
-    protected managerId: string;
-    
-    constructor() {
-        this.balance = 0.0;
+              code={`type User = { id: int; name: string };
+
+class Session {
+    user: User;
+    constructor(user: User) {
+        this.user = user;
     }
+}
+
+function main() {
+    let u: User = { id: 1, name: "A" };
+    let s = new Session(u);
+    print(s.user.name);
 }`}
             />
           </section>
@@ -1193,27 +1381,22 @@ function main() {
             <CodeBlock
               filename="oop_pro.tx"
               runCommand="tejx run oop_pro.tx"
-              code={`protocol Shaper {
+              code={`interface AreaShape {
     area(): float;
 }
 
-class Rect implements Shaper {
-    w: float; h: float;
+class Rect implements AreaShape {
+    w: float;
+    h: float;
     constructor(w: float, h: float) {
-        this.w = w; this.h = h;
+        this.w = w;
+        this.h = h;
     }
     area(): float { return this.w * this.h; }
 }
 
-extension Rect {
-    function log(): void {
-        print("Rectangle: ", this.w, "x", this.h);
-    }
-}
-
 function main() {
     let r = new Rect(10.0, 5.0);
-    r.log();
     print("Area: ", r.area());
 }`}
             />
@@ -1226,9 +1409,9 @@ function main() {
       title: "Async & Concurrency",
       icon: Activity,
       subsections: [
-        { id: "async-await", title: "Structured Async" },
-        { id: "threading", title: "Heavyweight Threads" },
-        { id: "mutex", title: "Shared State & Locks" },
+        { id: "async-await", title: "Async / Await" },
+        { id: "threading", title: "Native Threads" },
+        { id: "mutex", title: "Shared State & Coordination" },
       ],
       content: (
         <>
@@ -1236,76 +1419,101 @@ function main() {
             Async & Concurrency
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            TejX provides high-level structured concurrency and low-level thread
-            management for maximum hardware utilization.
+            TejX supports two different concurrency models: async/await for
+            latency-bound work and native OS threads for real parallel CPU work.
           </p>
 
           <section id="async-await" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Structured Async/Await</h3>
+            <h3 className="text-2xl font-bold mb-4">Async / Await</h3>
             <p className="text-gray-400 mb-4">
-              Use <code className="text-purple-400">async</code> to define tasks
-              and <code className="text-purple-400">await</code> to resolve them
-              without blocking the event loop.
+              Async code runs through the TejX event loop. User callbacks resume
+              on that loop, while background I/O completion is funneled back
+              into the TejX task queue.
             </p>
             <CodeBlock
               filename="async.tx"
-              code={`async function fetchData(url: string): string {
-    await time.sleep(100); // Simulate I/O
-    return "Response from " + url;
+              code={`import { delay } from "std:time";
+
+async function fetchData(id: int): Promise<string> {
+    await delay(100);
+    return "Data for ID: " + id;
 }
 
-async function main() {
-    let [res1, res2] = await Promise.all([
-        fetchData("api1.com"),
-        fetchData("api2.com")
-    ]);
-    print(res1, res2);
+async function main(): Promise<void> {
+    let first = await fetchData(1);
+    let second = await fetchData(2);
+    let both = await Promise.all([fetchData(10), fetchData(20)]);
+
+    print(first);
+    print(second);
+    print(both.length());
 }`}
             />
+            <ul className="space-y-2 text-sm text-gray-400 mt-4">
+              <li>Use async for timers, networking, file I/O, and other latency-bound workflows.</li>
+              <li>Avoid heavy CPU loops on the async event loop.</li>
+            </ul>
           </section>
 
-          <section id="threads" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Heavyweight Threads</h3>
+          <section id="threading" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">Native Threads</h3>
             <p className="text-gray-400 mb-4">
-              For CPU-intensive tasks, TejX maps directly to OS threads using
-              the <code className="text-purple-400">Thread</code> module.
+              For CPU-bound work, use <code className="text-purple-400">std:thread</code>.
+              This gives real parallel execution across cores.
             </p>
             <CodeBlock
-              code={`import { Thread } from "std:thread";
+              code={`import { Thread, Atomic } from "std:thread";
 
-function heavyTask(range: int): void {
-    for (let i = 0; i < range; i++) { /* complex math */ }
-    print("Done");
+function worker(args: any[]): void {
+    let result = args[0] as Atomic;
+    result.store(42);
 }
 
 function main() {
-    Thread.spawn(() => heavyTask(1000000));
+    let result = new Atomic(0);
+    let t = new Thread(worker, [result as any]);
+    t.join();
+    print(result.load());
 }`}
             />
           </section>
 
           <section id="mutex" className="mb-12">
-            <h3 className="text-2xl font-bold mb-4">Shared State (Mutex)</h3>
+            <h3 className="text-2xl font-bold mb-4">
+              Shared State & Coordination
+            </h3>
             <p className="text-gray-400 mb-4">
-              Protect shared data with the built-in Mutex for thread-safe
-              concurrency.
+              Protect shared mutable state with <code>Mutex</code>, or use
+              <code className="text-purple-400">Atomic</code>,{" "}
+              <code className="text-purple-400">Condition</code>, and{" "}
+              <code className="text-purple-400">SharedQueue&lt;T&gt;</code> when
+              coordinating threaded workers.
             </p>
             <CodeBlock
               filename="mutex.tx"
-              code={`import { Mutex } from "std:sync";
+              code={`import { Thread, Mutex, Atomic } from "std:thread";
 
-let lock = new Mutex();
-let counter = 0;
+function increment(args: any[]): void {
+    let lock = args[0] as Mutex;
+    let counter = args[1] as Atomic;
 
-function increment(): void {
-    lock.lock();
-    counter++;
-    lock.unlock();
+    for (let i = 0; i < 1000; i++) {
+        lock.lock();
+        let value = counter.load();
+        counter.store(value + 1);
+        lock.unlock();
+    }
 }
 
 function main() {
-    Thread.spawn(increment);
-    Thread.spawn(increment);
+    let lock = new Mutex();
+    let counter = new Atomic(0);
+    let args: any[] = [lock as any, counter as any];
+    let t1 = new Thread(increment, args);
+    let t2 = new Thread(increment, args);
+    t1.join();
+    t2.join();
+    print(counter.load());
 }`}
             />
           </section>
@@ -1321,27 +1529,47 @@ function main() {
             <CodeBlock
               filename="concurrency_pro.tx"
               runCommand="tejx run concurrency_pro.tx"
-              code={`import { Thread } from "std:thread";
-import { Mutex } from "std:sync";
+              code={`import { Thread, Mutex, Condition, SharedQueue, Atomic } from "std:thread";
 
-let counterLock = new Mutex();
-let count = 0;
+function producer(args: any[]): void {
+    let q = args[0] as SharedQueue<int>;
+    let lock = args[1] as Mutex;
+    let cond = args[2] as Condition;
+    lock.lock();
+    q.enqueue(21);
+    q.enqueue(21);
+    cond.notifyAll();
+    lock.unlock();
+}
 
-function work(id: int): void {
-    counterLock.lock();
-    count++;
-    print("Worker ", id, " updated count to ", count);
-    counterLock.unlock();
+function consumer(args: any[]): void {
+    let q = args[0] as SharedQueue<int>;
+    let lock = args[1] as Mutex;
+    let cond = args[2] as Condition;
+    let total = args[3] as Atomic;
+
+    lock.lock();
+    while (q.isEmpty()) {
+        cond.wait(lock);
+    }
+    total.add(q.dequeue() as int);
+    total.add(q.dequeue() as int);
+    lock.unlock();
 }
 
 function main() {
-    print("Starting concurrent workers...");
-    for (let i = 0; i < 5; i++) {
-        Thread.spawn(() => work(i));
-    }
-    // Wait slightly for threads (proper join planned)
-    time.sleep(100);
-    print("Final Count: ", count);
+    let q = new SharedQueue<int>();
+    let lock = new Mutex();
+    let cond = new Condition();
+    let total = new Atomic(0);
+    let shared: any[] = [q as any, lock as any, cond as any, total as any];
+
+    let tp = new Thread(producer, shared);
+    let tc = new Thread(consumer, shared);
+    tp.join();
+    tc.join();
+
+    print(total.load());
 }`}
             />
           </section>
@@ -1364,22 +1592,50 @@ function main() {
             Standard Library Reference
           </h2>
           <p className="text-xl text-gray-400 mb-8">
-            The TejX standard library provides zero-cost wrappers around native
-            C++ system capabilities.
+            The standard library is split between implicit core helpers and
+            opt-in <code className="text-purple-400">std:</code> modules such as
+            file system, networking, JSON, time, collections, and threading.
           </p>
 
           <section id="fs" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">std:fs</h3>
+            <p className="text-gray-400 mb-4">
+              File-system helpers are exposed through the exported{" "}
+              <code className="text-purple-400">fs</code> namespace.
+            </p>
             <CodeBlock
-              code={`import fs from "std:fs";
+              code={`import std:fs;
 
 function main() {
     fs.writeFileSync("config.tx", "DEBUG=true");
     let content = fs.readFileSync("config.tx");
     print("Content: ", content);
 
-    if (fs.exists("logs")) {
-        fs.readdir("logs").forEach((f: string) => print("Log File: ", f));
+    if (fs.existsSync(".")) {
+        let files = fs.readdirSync(".");
+        print(files.length());
+    }
+}`}
+            />
+          </section>
+
+          <section id="net" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">std:net</h3>
+            <p className="text-gray-400 mb-4">
+              Networking exposes low-level TCP helpers and async/sync HTTP
+              namespaces.
+            </p>
+            <CodeBlock
+              code={`import { http, net } from "std:net";
+
+async function main(): Promise<void> {
+    let body = await http.get("https://example.com");
+    print(body.length());
+
+    let stream = net.connect("127.0.0.1:9000");
+    if (stream != None) {
+        stream.send("ping");
+        net.close(stream);
     }
 }`}
             />
@@ -1387,15 +1643,40 @@ function main() {
 
           <section id="json" className="mb-12">
             <h3 className="text-2xl font-bold mb-4">std:json</h3>
+            <p className="text-gray-400 mb-4">
+              <code className="text-purple-400">parse</code> returns dynamic
+              values, and <code className="text-purple-400">stringify</code>{" "}
+              supports pretty-print spacing.
+            </p>
             <CodeBlock
               code={`import { parse, stringify } from "std:json";
 
 function main() {
     let data = { name: "TejX", fast: true };
-    let jsonStr = stringify(data);
+    let jsonStr = stringify(data, 2);
     let obj = parse(jsonStr);
 
-    print("Name from JSON: ", obj.name); // TejX
+    print("Name from JSON: ", obj.name);
+}`}
+            />
+          </section>
+
+          <section id="time" className="mb-12">
+            <h3 className="text-2xl font-bold mb-4">std:time</h3>
+            <p className="text-gray-400 mb-4">
+              Time helpers cover synchronous sleep, async delay, timer APIs, and
+              a lightweight <code>Date</code> wrapper.
+            </p>
+            <CodeBlock
+              code={`import { now, sleep, delay, Date } from "std:time";
+
+async function main(): Promise<void> {
+    print(now() > 0);
+    sleep(10);
+    await delay(10);
+
+    let d = new Date();
+    print(d.toISOString());
 }`}
             />
           </section>
@@ -1411,13 +1692,13 @@ function main() {
             <CodeBlock
               filename="system_pro.tx"
               runCommand="tejx run system_pro.tx"
-              code={`import fs from "std:fs";
+              code={`import std:fs;
 import { stringify } from "std:json";
-import time from "std:time";
+import { now } from "std:time";
 
 function main() {
     let session = {
-        ts: time.now(),
+        ts: now(),
         event: "DOCS_VIEW"
     };
 
