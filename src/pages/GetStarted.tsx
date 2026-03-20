@@ -117,23 +117,24 @@ const GetStarted: React.FC = () => {
                 <h4 className="text-2xl font-bold">Create an Example</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
-                Save the following code into a file named{" "}
-                <code className="text-orange-400">main.tx</code> to see TejX in
-                action.
+                Save this small starter program into{" "}
+                <code className="text-orange-400">main.tx</code> to compile and
+                run your first TejX program.
               </p>
             </div>
             <div className="w-full max-w-xl">
               <CodeBlock
                 filename="main.tx"
-                code={`import { parse, stringify } from "std:json";
+                code={`function add(a: int, b: int): int {
+    return a + b;
+}
 
 function main() {
-    let x = 42;
-    let s = stringify(x);
-    print("Stringified x:", s);
+    let name = "TejX";
+    let total = add(4, 6);
 
-    let parsed: int = parse(s);
-    print("Parsed value:", parsed);
+    print("Hello,", name);
+    print("4 + 6 =", total);
 }`}
               />
             </div>
