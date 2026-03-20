@@ -65,9 +65,9 @@ const PlaygroundPage: React.FC = () => {
                 fontSize: "0.74rem",
               }}
             >
-              Browser Preview: Runs a limited TejX build for basic syntax and
-              language testing. Install locally for the full compiler and
-              runtime features.
+              Runs a limited TejX build for basic syntax and language testing.
+              Sometime may give wrong output. Install locally for the full
+              compiler and runtime features.
             </p>
           </div>
         </div>
