@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useEffectEvent } from "react";
+import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { LoaderCircle, Play, RotateCcw, Terminal } from "lucide-react";
 import { compiler } from "../lib/compiler";
@@ -42,7 +42,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [executionTime, setExecutionTime] = useState<string | null>(null);
 
-  const runSource = useEffectEvent(async (source: string) => {
+  const runSource = async (source: string) => {
     setIsRunning(true);
     setExecutionTime(null);
     const startTime = performance.now();
@@ -63,7 +63,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
     } finally {
       setIsRunning(false);
     }
-  });
+  };
 
   useEffect(() => {
     compiler.init();
@@ -207,7 +207,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
             />
           </div>
         </div>
-        <div className="console-output flex-1 lg:flex-1 h-[300px] lg:h-full bg-black rounded-xl p-4 font-mono text-[13px] border border-white/10 overflow-auto whitespace-pre">
+        <div className="console-output flex-1 lg:flex-1 self-stretch rounded-xl border border-white/10 bg-black p-4 font-mono text-[13px] overflow-auto whitespace-pre min-h-[400px] lg:min-h-0">
           <div
             style={{
               display: "flex",

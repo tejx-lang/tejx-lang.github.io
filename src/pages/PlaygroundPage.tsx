@@ -66,8 +66,8 @@ const PlaygroundPage: React.FC = () => {
               }}
             >
               Runs a limited TejX build for basic syntax and language testing.
-              Sometime may give wrong output. Install locally for the full
-              compiler and runtime features.
+              It may give incomplete or incorrect results. Install locally for
+              the full compiler and runtime features.
             </p>
           </div>
         </div>
