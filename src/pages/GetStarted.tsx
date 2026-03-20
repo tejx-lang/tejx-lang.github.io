@@ -165,6 +165,38 @@ function main() {
               </div>
             </div>
           </motion.div>
+
+          {/* Step 5: Uninstall */}
+          <motion.div
+            id="uninstall"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+            className="p-6 md:p-8 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-6"
+          >
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-red-500/50">05</span>
+                <h4 className="text-2xl font-bold">Uninstall</h4>
+              </div>
+              <p className="text-gray-400 text-sm max-w-2xl">
+                Remove the TejX toolchain from{" "}
+                <code className="text-red-300">~/.tejx</code> when you no
+                longer need it.
+              </p>
+            </div>
+            <div className="w-full max-w-xl">
+              <InstallBlock
+                label="Shell"
+                command="curl -fsSL https://tejx-lang.github.io/uninstall.sh | sh"
+              />
+            </div>
+            <p className="text-gray-500 text-sm max-w-2xl">
+              If you added <code className="text-purple-300">~/.tejx/bin</code>{" "}
+              to your shell <code className="text-purple-300">PATH</code>{" "}
+              manually, remove that line from your shell config too.
+            </p>
+          </motion.div>
         </div>
       </div>
     </div>

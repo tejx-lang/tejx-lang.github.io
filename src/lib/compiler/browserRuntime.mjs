@@ -1561,15 +1561,17 @@ export class TejxCompiler {
   static async fromBytes(bytes, options = {}) {
     let memory = null;
     const decoder = new TextDecoder();
+    const compilerLog = (ptr, len) => {
+      if (!memory) {
+        return;
+      }
+      const bytes = new Uint8Array(memory.buffer, ptr, len);
+      options.onLog?.(decoder.decode(bytes));
+    };
     const { instance } = await WebAssembly.instantiate(bytes, {
       env: {
-        tejx_compiler_log(ptr, len) {
-          if (!memory) {
-            return;
-          }
-          const bytes = new Uint8Array(memory.buffer, ptr, len);
-          options.onLog?.(decoder.decode(bytes));
-        },
+        tejx_compiler_log: compilerLog,
+        compiler_log: compilerLog,
       },
     });
     memory = instance.exports.memory;
@@ -1577,7 +1579,7 @@ export class TejxCompiler {
   }
 
   static async fromUrl(url, options = {}) {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-cache" });
     const bytes = await response.arrayBuffer();
     return TejxCompiler.fromBytes(bytes, options);
   }

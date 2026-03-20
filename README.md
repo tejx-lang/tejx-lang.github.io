@@ -22,7 +22,7 @@ TejX is a high-performance, type-safe scripting language designed for humans and
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20 or higher)
+- [Node.js](https://nodejs.org/) (v22)
 - [Yarn](https://yarnpkg.com/)
 
 ### Installation

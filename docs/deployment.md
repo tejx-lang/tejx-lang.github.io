@@ -52,7 +52,7 @@ export default defineConfig({
 The workflow file is located at `.github/workflows/deploy.yml`. It handles:
 
 - Checking out the code.
-- Setting up the Node.js environment.
+- Setting up the Node.js 22 environment from `.nvmrc`.
 - Installing dependencies via `yarn install`.
 - Building the project via `yarn build`.
 - Uploading the `dist` folder as a deployment primitive.
