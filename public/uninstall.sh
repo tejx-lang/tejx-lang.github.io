@@ -2,13 +2,11 @@
 # TejX Compiler Uninstaller
 # Usage: curl -fsSL https://tejx-lang.github.io/uninstall.sh | sh
 #
-# Removes the tejxc binary from /usr/local/bin/tejxc
+# Removes the TejX toolchain from ~/.tejx
 
 set -e
 
-BINARY_NAME="tejxc"
-INSTALL_DIR="/usr/local/bin"
-BINARY_PATH="${INSTALL_DIR}/${BINARY_NAME}"
+TEJX_DIR="${TEJX_DIR:-$HOME/.tejx}"
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -30,24 +28,19 @@ main() {
     echo "  ───────────────────────────"
     echo ""
 
-    if [ ! -f "$BINARY_PATH" ]; then
-        error "TejX compiler not found at ${BINARY_PATH}"
+    if [ ! -d "$TEJX_DIR" ]; then
+        error "TejX installation not found at ${TEJX_DIR}"
     fi
 
-    info "Removing TejX compiler from ${BINARY_PATH}..."
+    info "Removing TejX toolchain from ${TEJX_DIR}..."
 
-    if [ -w "$INSTALL_DIR" ]; then
-        rm "$BINARY_PATH"
-    else
-        info "Permission denied. Requesting sudo to remove ${BINARY_PATH}..."
-        sudo rm "$BINARY_PATH"
+    rm -rf "$TEJX_DIR"
+
+    if [ -d "$TEJX_DIR" ]; then
+        error "Failed to completely remove the TejX toolchain."
     fi
 
-    if [ ! -f "$BINARY_PATH" ]; then
-        success "TejX compiler has been successfully removed."
-    else
-        error "Failed to remove the TejX compiler."
-    fi
+    success "TejX toolchain has been successfully removed."
     echo ""
 }
 

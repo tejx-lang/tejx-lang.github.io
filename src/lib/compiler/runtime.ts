@@ -950,7 +950,7 @@ export function createRuntime(
     get: (target, prop) => {
       if (prop in target) return target[prop as string];
       // Auto-stub missing functions
-      return (..._args: any[]) => {
+      return () => {
         console.warn(`[Runtime STUB] Missing: ${String(prop)}`);
         return 0n;
       };

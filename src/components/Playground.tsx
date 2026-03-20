@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, RotateCcw, Terminal } from "lucide-react";
+import { LoaderCircle, Play, RotateCcw, Terminal } from "lucide-react";
 import { compiler } from "../lib/compiler";
 
 const DEFAULT_CODE = `function main() {
@@ -18,7 +18,7 @@ const DEFAULT_CODE = `function main() {
 
     let obj = {
         name: "TejX",
-        version: "0.1.0",
+        version: "1.0.0",
         is_awesome: true
     };
     print("Object support:", obj);
@@ -42,24 +42,35 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [executionTime, setExecutionTime] = useState<string | null>(null);
 
+  const runSource = async (source: string) => {
+    setIsRunning(true);
+    setExecutionTime(null);
+    const startTime = performance.now();
+
+    try {
+      const result = await compiler.compile(source);
+      const endTime = performance.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(3);
+
+      if (result.success) {
+        setExecutionTime(duration);
+      }
+
+      setOutput(result.output);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setOutput([message]);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   useEffect(() => {
     compiler.init();
   }, []);
 
   const runCode = async () => {
-    setIsRunning(true);
-    setExecutionTime(null);
-    const startTime = performance.now();
-    const result = await compiler.compile(code);
-    const endTime = performance.now();
-    const duration = ((endTime - startTime) / 1000).toFixed(3);
-
-    if (result.success) {
-      setExecutionTime(duration);
-    }
-
-    setOutput(result.output);
-    setIsRunning(false);
+    await runSource(code);
   };
 
   const resetCode = () => {
@@ -96,12 +107,13 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
             onClick={resetCode}
-            className="btn-secondary"
+            className="btn-secondary transition-all active:scale-95 hover:text-white"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "0.4rem",
               color: "#94a3b8",
+              cursor: "pointer",
             }}
           >
             <RotateCcw size={16} /> Reset
@@ -109,7 +121,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
           <button
             onClick={runCode}
             disabled={isRunning}
-            className="btn-primary"
+            className="btn-primary transition-all active:scale-95 hover:brightness-110"
             style={{
               display: "flex",
               alignItems: "center",
@@ -119,9 +131,16 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               borderRadius: "12px",
               fontWeight: 600,
               opacity: isRunning ? 0.7 : 1,
+              cursor: isRunning ? "default" : "pointer",
             }}
+            aria-busy={isRunning}
           >
-            <Play size={16} fill="white" /> {isRunning ? "Running..." : "Run"}
+            {isRunning ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <Play size={16} fill="white" />
+            )}{" "}
+            {isRunning ? "Running..." : "Run"}
           </button>
         </div>
       </div>
@@ -136,11 +155,13 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               value={code}
               onChange={(val) => setCode(val || "")}
               onMount={(_editor, monaco) => {
-                // Disable TypeScript diagnostics that don't apply to TejX
+                // TejX syntax intentionally diverges from TypeScript in places
+                // like `import { readFileSync } from "std:fs";`, so Monaco's
+                // TS parser is too noisy here.
                 monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
                   {
                     noSemanticValidation: true,
-                    noSyntaxValidation: false,
+                    noSyntaxValidation: true,
                   },
                 );
 
@@ -186,7 +207,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
             />
           </div>
         </div>
-        <div className="console-output flex-1 lg:flex-1 h-[300px] lg:h-full bg-black rounded-xl p-4 font-mono text-[13px] border border-white/10 overflow-auto whitespace-pre">
+        <div className="console-output flex-1 lg:flex-1 self-stretch rounded-xl border border-white/10 bg-black p-4 font-mono text-[13px] overflow-auto whitespace-pre min-h-[400px] lg:min-h-0">
           <div
             style={{
               display: "flex",

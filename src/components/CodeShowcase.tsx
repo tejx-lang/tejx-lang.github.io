@@ -2,15 +2,16 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const CodeShowcase: React.FC = () => {
-  const codeSnippet = `import { parse, stringify } from "std:json";
+  const codeSnippet = `function add(a: int, b: int): int {
+    return a + b;
+}
 
 function main() {
-    let x = 42;
-    let s = stringify(x);
-    print("Stringified x:", s);
+    let name = "TejX";
+    let total = add(4, 6);
 
-    let parsed = parse(s);
-    print("Parsed value (dummy 42 for now):", parsed);
+    print("Hello,", name);
+    print("4 + 6 =", total);
 }`;
 
   return (
@@ -41,11 +42,11 @@ function main() {
                   <span className="whitespace-pre">
                     {(() => {
                       const regex =
-                        /(\b(?:function|func|return|if|else|let|const|import|from|int|string|bool|void|main|add|print|parse|stringify)\b|"(?:[^"\\]|\\.)*"|\/\/.*)/g;
+                        /(\b(?:function|func|return|if|else|let|const|int|string|bool|void|main|add|print)\b|"(?:[^"\\]|\\.)*"|\/\/.*)/g;
                       const parts = line.split(regex);
                       return parts.map((part, index) => {
                         if (
-                          /^(function|func|return|if|else|let|const|import|from)$/.test(
+                          /^(function|func|return|if|else|let|const)$/.test(
                             part,
                           )
                         ) {
@@ -79,7 +80,7 @@ function main() {
                             </span>
                           );
                         }
-                        if (/^(main|add|print|parse|stringify)$/.test(part)) {
+                        if (/^(main|add|print)$/.test(part)) {
                           return (
                             <span key={index} className="text-blue-400">
                               {part}

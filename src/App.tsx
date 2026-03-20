@@ -24,9 +24,7 @@ const AppContent: React.FC = () => {
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/docs" element={<Documentation />}>
-            <Route path=":sectionId" element={<Documentation />} />
-          </Route>
+          <Route path="/docs/:sectionId?" element={<Documentation />} />
           <Route
             path="/get-started"
             element={<Navigate to="/docs/get-started" replace />}

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Copy, Check } from "lucide-react";
+import CodeBlock from "../components/CodeBlock";
 const InstallBlock: React.FC<{ command: string; label: string }> = ({
   command,
   label,
@@ -61,8 +62,9 @@ const GetStarted: React.FC = () => {
                 Quick Install
               </h3>
               <p className="text-gray-400 text-sm max-w-2xl">
-                Universal installer for macOS & Linux. Single binary, zero
-                dependencies.
+                Universal installer for macOS & Linux. Installs the compiler,
+                runtime, and standard library into
+                <code className="text-purple-400"> ~/.tejx</code>.
               </p>
             </div>
             <div className="w-full max-w-xl">
@@ -71,6 +73,7 @@ const GetStarted: React.FC = () => {
                 command="curl -fsSL https://tejx-lang.github.io/install.sh | sh"
               />
             </div>
+
           </motion.div>
 
           {/* Step 2: Setup Project */}
@@ -114,27 +117,26 @@ const GetStarted: React.FC = () => {
                 <h4 className="text-2xl font-bold">Create an Example</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
-                Save the following code into a file named{" "}
-                <code className="text-orange-400">main.tx</code> to see TejX in
-                action.
+                Save this small starter program into{" "}
+                <code className="text-orange-400">main.tx</code> to compile and
+                run your first TejX program.
               </p>
             </div>
-            <div className="w-full max-w-xl bg-[#0a0a0a] rounded-xl overflow-hidden border border-white/5">
-              <div className="px-4 py-2 bg-white/5 border-b border-white/5 text-xs font-mono text-gray-500 flex justify-between items-center">
-                <span>main.tx</span>
-              </div>
-              <pre className="p-6 font-mono text-sm text-orange-200/80 leading-relaxed overflow-x-auto">
-                {`import { parse, stringify } from "std:json";
+            <div className="w-full max-w-xl">
+              <CodeBlock
+                filename="main.tx"
+                code={`function add(a: int, b: int): int {
+    return a + b;
+}
 
 function main() {
-    let x = 42;
-    let s = stringify(x);
-    print("Stringified x:", s);
+    let name = "TejX";
+    let total = add(4, 6);
 
-    let parsed = parse(s);
-    print("Parsed value:", parsed);
+    print("Hello,", name);
+    print("4 + 6 =", total);
 }`}
-              </pre>
+              />
             </div>
           </motion.div>
 

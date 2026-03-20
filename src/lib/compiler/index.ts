@@ -1,301 +1,685 @@
-/**
- * This is a boilerplate for integrating a WASM-based compiler.
- * To use this, you should first compile your Rust/C++ compiler to WASM
- * and place the generated files in this directory.
- */
-
-import { APP_CONFIG } from "../constants";
-import { runtimePatches, createRuntime } from "./runtime";
+// @ts-expect-error Upstream browser runtime is copied in as a plain .mjs module.
+import { TejxCompiler as BrowserTejxCompiler } from "./browserRuntime.mjs";
 
 export interface CompilerResult {
   output: string[];
   success: boolean;
-  binary?: Uint8Array; // Added binary to result for execution
+  binary?: Uint8Array;
+}
+
+interface CompileReport {
+  ok?: boolean;
+  wat?: string;
+  full_error?: string;
+  message?: string;
+  stage?: string;
+}
+
+interface ProgramHost {
+  unsupportedCalls: Set<string>;
+  runMain(): unknown;
+}
+
+interface BrowserCompiler {
+  compileToWatReport(
+    source: string,
+    filename?: string,
+    config?: Record<string, unknown>,
+  ): CompileReport;
+  compileAndInstantiate(
+    source: string,
+    options?: {
+      filename?: string;
+      config?: Record<string, unknown>;
+      compileReport?: CompileReport;
+      onOutput?: (line: string) => void;
+    },
+  ): Promise<ProgramHost>;
+}
+
+interface BrowserCompilerConstructor {
+  fromUrl(
+    url: string | URL,
+    options?: { onLog?: (line: string) => void },
+  ): Promise<BrowserCompiler>;
+}
+
+const BrowserCompilerApi = BrowserTejxCompiler as BrowserCompilerConstructor;
+
+const STD_JSON_IMPORT_PATTERN =
+  /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:json["'];?[ \t]*$/gm;
+const STD_FS_NAMED_IMPORT_PATTERN =
+  /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:fs["'];?[ \t]*$/gm;
+const STD_FS_NAMESPACE_IMPORT_PATTERN =
+  /^([ \t]*)import\s+std:fs\s*;?[ \t]*$/gm;
+
+const BROWSER_STD_JSON_SHIM = String.raw`// Browser playground shim for named std:json imports.
+function __tejx_browser_json_escape_string(str: string): string {
+    let res = "\"";
+    let len = str.length();
+    for (let i = 0; i < len; i++) {
+        let ch = str[i];
+        if (ch == "\"") res = res + "\\\"";
+        else if (ch == "\\") res = res + "\\\\";
+        else if (ch == "\b") res = res + "\\b";
+        else if (ch == "\f") res = res + "\\f";
+        else if (ch == "\n") res = res + "\\n";
+        else if (ch == "\r") res = res + "\\r";
+        else if (ch == "\t") res = res + "\\t";
+        else res = res + ch;
+    }
+    return res + "\"";
+}
+
+function __tejx_browser_json_serialize(val: any, out: string[], seen: any[], indent: string, gap: string) {
+    if (typeof(val) == "object" && val != None) {
+        if (typeof(val["toJSON"]) == "function") {
+            val = val.toJSON();
+        }
+    }
+
+    if (val == None) {
+        out.push("null");
+        return;
+    }
+
+    let ty = typeof(val);
+    if (ty == "string") {
+        out.push(__tejx_browser_json_escape_string(val as string));
+        return;
+    }
+    if (ty == "int" || ty == "float" || ty == "bool") {
+        out.push(rt_to_string(val));
+        return;
+    }
+
+    if (ty == "object" || rt_is_array(val)) {
+        let seenLen = seen.length();
+        for (let i = 0; i < seenLen; i++) {
+            if (seen[i] == val) {
+                out.push("\"[Circular Reference]\"");
+                return;
+            }
+        }
+        seen.push(val);
+    }
+
+    let step = indent + gap;
+    let isPretty = gap.length() > 0;
+
+    if (rt_is_array(val)) {
+        let arr = val as any[];
+        let len = arr.length();
+        if (len == 0) {
+            out.push("[]");
+        } else {
+            out.push("[");
+            if (isPretty) out.push("\n");
+            for (let i = 0; i < len; i++) {
+                if (isPretty) out.push(step);
+                __tejx_browser_json_serialize(arr[i], out, seen, step, gap);
+                if (i < len - 1) {
+                    out.push(",");
+                    if (isPretty) out.push("\n");
+                }
+            }
+            if (isPretty) {
+                out.push("\n");
+                out.push(indent);
+            }
+            out.push("]");
+        }
+        seen.pop();
+        return;
+    }
+
+    if (ty == "object") {
+        let keys = Object.keys(val);
+        let len = keys.length();
+        if (len == 0) {
+            out.push("{}");
+        } else {
+            out.push("{");
+            if (isPretty) out.push("\n");
+            let added = false;
+            for (let i = 0; i < len; i++) {
+                let k = keys[i];
+                if (k == "toString" || k == "constructor" || k == "__proto__") continue;
+
+                let childVal: any = val[k];
+                if (typeof(childVal) == "function" || childVal == undefined) continue;
+
+                if (added) {
+                    out.push(",");
+                    if (isPretty) out.push("\n");
+                }
+
+                if (isPretty) out.push(step);
+                out.push(__tejx_browser_json_escape_string(k));
+                out.push(isPretty ? ": " : ":");
+                __tejx_browser_json_serialize(childVal, out, seen, step, gap);
+                added = true;
+            }
+            if (isPretty && added) {
+                out.push("\n");
+                out.push(indent);
+            }
+            out.push("}");
+        }
+        seen.pop();
+        return;
+    }
+
+    out.push("null");
+}
+
+function __tejx_browser_json_stringify(val: any, space: any = None): string {
+    let out: string[] = [];
+    let seen: any[] = [];
+    let gap = "";
+
+    if (typeof(space) == "number") {
+        let spaces = space as float;
+        if (spaces > 10) spaces = 10;
+        for (let i = 0; i < spaces; i++) gap = gap + " ";
+    } else if (typeof(space) == "string") {
+        gap = space as string;
+        if (gap.length() > 10) gap = gap.substring(0, 10);
+    }
+
+    __tejx_browser_json_serialize(val, out, seen, "", gap);
+    return out.join("");
+}
+
+function __tejx_browser_json_skip_whitespace(state: any[]) {
+    let source: string = state[0] as string;
+    while ((state[1] as int) < (state[2] as int)) {
+        let ch = source[state[1] as int];
+        if (" \n\t\rx".includes(ch)) {
+            state[1] = (state[1] as int) + 1;
+        } else {
+            return;
+        }
+    }
+}
+
+function __tejx_browser_json_parse_string(state: any[]): string {
+    let source: string = state[0] as string;
+    state[1] = (state[1] as int) + 1;
+    let res = "";
+
+    while ((state[1] as int) < (state[2] as int)) {
+        let ch = source[state[1] as int];
+        if (ch == "\"") {
+            state[1] = (state[1] as int) + 1;
+            return res;
+        }
+        if (ch == "\\") {
+            state[1] = (state[1] as int) + 1;
+            if ((state[1] as int) >= (state[2] as int)) {
+                break;
+            }
+            let esc = source[state[1] as int];
+            if (esc == "\"") res = res + "\"";
+            else if (esc == "\\") res = res + "\\";
+            else if (esc == "/") res = res + "/";
+            else if (esc == "b") res = res + "\b";
+            else if (esc == "f") res = res + "\f";
+            else if (esc == "n") res = res + "\n";
+            else if (esc == "r") res = res + "\r";
+            else if (esc == "t") res = res + "\t";
+            else res = res + esc;
+        } else {
+            res = res + ch;
+        }
+        state[1] = (state[1] as int) + 1;
+    }
+
+    throw new Error("SyntaxError: Unterminated string in JSON");
+}
+
+function __tejx_browser_json_parse_number(state: any[]): any {
+    let source: string = state[0] as string;
+    let start: int = state[1] as int;
+
+    if ((state[1] as int) < (state[2] as int) && source[state[1] as int] == "-") {
+        state[1] = (state[1] as int) + 1;
+    }
+
+    while ((state[1] as int) < (state[2] as int)) {
+        let ch = source[state[1] as int];
+        if ("0123456789x".includes(ch)) {
+            state[1] = (state[1] as int) + 1;
+        } else if (".eEx".includes(ch)) {
+            state[1] = (state[1] as int) + 1;
+        } else if ((ch == "+" || ch == "-") && (state[1] as int) > start) {
+            state[1] = (state[1] as int) + 1;
+        } else {
+            break;
+        }
+    }
+
+    if (start == (state[1] as int)) {
+        throw new Error("SyntaxError: Expected number");
+    }
+
+    let numStr: string = source.substring(start, state[1] as int);
+    let value: float = parseFloat(numStr);
+    if (numStr.includes(".") || numStr.includes("e") || numStr.includes("E")) {
+        return value;
+    }
+    return value as int;
+}
+
+function __tejx_browser_json_parse_literal(state: any[], word: string, returnValue: any): any {
+    let source: string = state[0] as string;
+    let start: int = state[1] as int;
+    let end: int = start + word.length();
+    if (source.substring(start, end) == word) {
+        state[1] = end;
+        return returnValue;
+    }
+    throw new Error("SyntaxError: Unexpected token in JSON");
+}
+
+function __tejx_browser_json_parse_array(state: any[]): any[] {
+    let source: string = state[0] as string;
+    state[1] = (state[1] as int) + 1;
+    let res: any[] = [];
+    __tejx_browser_json_skip_whitespace(state);
+
+    if ((state[1] as int) < (state[2] as int) && source[state[1] as int] == "]") {
+        state[1] = (state[1] as int) + 1;
+        return res;
+    }
+
+    while ((state[1] as int) < (state[2] as int)) {
+        let item: any = __tejx_browser_json_parse_value(state);
+        res.push(item);
+        __tejx_browser_json_skip_whitespace(state);
+
+        if ((state[1] as int) >= (state[2] as int)) {
+            break;
+        }
+
+        let ch = source[state[1] as int];
+        if (ch == ",") {
+            state[1] = (state[1] as int) + 1;
+            __tejx_browser_json_skip_whitespace(state);
+        } else if (ch == "]") {
+            state[1] = (state[1] as int) + 1;
+            return res;
+        } else {
+            throw new Error("SyntaxError: Expected ',' or ']' in array");
+        }
+    }
+
+    throw new Error("SyntaxError: Unterminated array in JSON");
+}
+
+function __tejx_browser_json_parse_object(state: any[]): any {
+    let source: string = state[0] as string;
+    state[1] = (state[1] as int) + 1;
+    let res: any = {};
+    __tejx_browser_json_skip_whitespace(state);
+
+    if ((state[1] as int) < (state[2] as int) && source[state[1] as int] == "}") {
+        state[1] = (state[1] as int) + 1;
+        return res;
+    }
+
+    while ((state[1] as int) < (state[2] as int)) {
+        if (source[state[1] as int] != "\"") {
+            throw new Error("SyntaxError: Expected string key in object");
+        }
+
+        let key = __tejx_browser_json_parse_string(state);
+        __tejx_browser_json_skip_whitespace(state);
+
+        if ((state[1] as int) >= (state[2] as int) || source[state[1] as int] != ":") {
+            throw new Error("SyntaxError: Expected ':' after object key");
+        }
+
+        state[1] = (state[1] as int) + 1;
+        let value: any = __tejx_browser_json_parse_value(state);
+        res[key] = value;
+        __tejx_browser_json_skip_whitespace(state);
+
+        if ((state[1] as int) >= (state[2] as int)) {
+            break;
+        }
+
+        let ch = source[state[1] as int];
+        if (ch == ",") {
+            state[1] = (state[1] as int) + 1;
+            __tejx_browser_json_skip_whitespace(state);
+        } else if (ch == "}") {
+            state[1] = (state[1] as int) + 1;
+            return res;
+        } else {
+            throw new Error("SyntaxError: Expected ',' or '}' in object");
+        }
+    }
+
+    throw new Error("SyntaxError: Unterminated object in JSON");
+}
+
+function __tejx_browser_json_parse_value(state: any[]): any {
+    let source: string = state[0] as string;
+    __tejx_browser_json_skip_whitespace(state);
+    if ((state[1] as int) >= (state[2] as int)) {
+        throw new Error("SyntaxError: Unexpected end of JSON input");
+    }
+
+    let ch = source[state[1] as int];
+    if (ch == "\"") return __tejx_browser_json_parse_string(state);
+    if (ch == "[") return __tejx_browser_json_parse_array(state);
+    if (ch == "{") return __tejx_browser_json_parse_object(state);
+    if (ch == "t") return __tejx_browser_json_parse_literal(state, "true", true);
+    if (ch == "f") return __tejx_browser_json_parse_literal(state, "false", false);
+    if (ch == "n") return __tejx_browser_json_parse_literal(state, "null", None);
+    return __tejx_browser_json_parse_number(state);
+}
+
+function __tejx_browser_json_parse(s: string): any {
+    let state: any[] = [s, 0, s.length()];
+    let result: any = __tejx_browser_json_parse_value(state);
+    __tejx_browser_json_skip_whitespace(state);
+    if ((state[1] as int) < (state[2] as int)) {
+        throw new Error("SyntaxError: Unexpected trailing characters in JSON");
+    }
+    return result;
+}`;
+
+const BROWSER_STD_FS_SHIM = String.raw`// Browser playground shim for std:fs imports.
+function __tejx_browser_fs_existsSync(path: string): bool {
+    return rt_fs_exists(path) != 0;
+}
+
+function __tejx_browser_fs_readFileSync(path: string): string {
+    return rt_fs_read_sync(path);
+}
+
+function __tejx_browser_fs_writeFileSync(path: string, content: string): bool {
+    return rt_fs_write_sync(path, content) == 1;
+}
+
+function __tejx_browser_fs_appendFileSync(path: string, content: string): bool {
+    return rt_fs_append_sync(path, content) == 1;
+}
+
+function __tejx_browser_fs_unlinkSync(path: string): bool {
+    return rt_fs_unlink_sync(path) == 1;
+}
+
+function __tejx_browser_fs_mkdirSync(path: string): bool {
+    return rt_fs_mkdir_sync(path) == 1;
+}
+
+function __tejx_browser_fs_readdirSync(path: string): string[] {
+    return rt_fs_readdir_sync(path);
+}
+
+async function __tejx_browser_fs_readFile(path: string): Promise<string> {
+    return __tejx_browser_fs_readFileSync(path);
+}
+
+async function __tejx_browser_fs_writeFile(path: string, content: string): Promise<bool> {
+    return __tejx_browser_fs_writeFileSync(path, content);
+}
+
+function __tejx_browser_fs_read_to_string(path: string): string {
+    return __tejx_browser_fs_readFileSync(path);
+}
+
+function __tejx_browser_fs_mkdir(path: string): bool {
+    return __tejx_browser_fs_mkdirSync(path);
+}`;
+
+const STD_FS_NAMESPACE_MEMBERS = {
+  existsSync: "__tejx_browser_fs_existsSync",
+  readFileSync: "__tejx_browser_fs_readFileSync",
+  writeFileSync: "__tejx_browser_fs_writeFileSync",
+  appendFileSync: "__tejx_browser_fs_appendFileSync",
+  unlinkSync: "__tejx_browser_fs_unlinkSync",
+  mkdirSync: "__tejx_browser_fs_mkdirSync",
+  readdirSync: "__tejx_browser_fs_readdirSync",
+  readFile: "__tejx_browser_fs_readFile",
+  writeFile: "__tejx_browser_fs_writeFile",
+} as const;
+
+function parseNamedImportSpecifier(specifier: string) {
+  const match = specifier
+    .trim()
+    .match(/^([A-Za-z_]\w*)(?:\s+as\s+([A-Za-z_]\w*))?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    imported: match[1],
+    local: match[2] ?? match[1],
+  };
+}
+
+function buildBrowserStdJsonAlias(imported: string, local: string) {
+  if (imported === "parse") {
+    return `function ${local}(s: string): any { return __tejx_browser_json_parse(s); }`;
+  }
+
+  if (imported === "stringify") {
+    return `function ${local}(val: any, space: any = None): string { return __tejx_browser_json_stringify(val, space); }`;
+  }
+
+  return null;
+}
+
+function buildBrowserStdFsAlias(imported: string, local: string) {
+  switch (imported) {
+    case "existsSync":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_existsSync(path); }`;
+    case "readFileSync":
+      return `function ${local}(path: string): string { return __tejx_browser_fs_readFileSync(path); }`;
+    case "writeFileSync":
+      return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_writeFileSync(path, content); }`;
+    case "appendFileSync":
+      return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_appendFileSync(path, content); }`;
+    case "unlinkSync":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_unlinkSync(path); }`;
+    case "mkdirSync":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_mkdirSync(path); }`;
+    case "readdirSync":
+      return `function ${local}(path: string): string[] { return __tejx_browser_fs_readdirSync(path); }`;
+    case "readFile":
+      return `async function ${local}(path: string): Promise<string> { return __tejx_browser_fs_readFile(path); }`;
+    case "writeFile":
+      return `async function ${local}(path: string, content: string): Promise<bool> { return __tejx_browser_fs_writeFile(path, content); }`;
+    case "read_to_string":
+      return `function ${local}(path: string): string { return __tejx_browser_fs_read_to_string(path); }`;
+    case "mkdir":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_mkdir(path); }`;
+    default:
+      return null;
+  }
+}
+
+function transformBrowserStdJson(source: string) {
+  const aliasFunctions: string[] = [];
+  let usesBrowserShim = false;
+
+  const transformed = source.replace(
+    STD_JSON_IMPORT_PATTERN,
+    (_match: string, indent: string, specifierBlock: string) => {
+      void _match;
+      const remaining: string[] = [];
+
+      for (const rawSpecifier of specifierBlock.split(",")) {
+        const parsed = parseNamedImportSpecifier(rawSpecifier);
+        if (!parsed) {
+          remaining.push(rawSpecifier.trim());
+          continue;
+        }
+
+        if (parsed.imported === "parse" || parsed.imported === "stringify") {
+          const alias = buildBrowserStdJsonAlias(parsed.imported, parsed.local);
+          if (alias) {
+            aliasFunctions.push(alias);
+            usesBrowserShim = true;
+          }
+          continue;
+        }
+
+        remaining.push(rawSpecifier.trim());
+      }
+
+      if (remaining.length === 0) {
+        return "";
+      }
+
+      return `${indent}import { ${remaining.join(", ")} } from "std:json";`;
+    },
+  );
+
+  if (!usesBrowserShim) {
+    return source;
+  }
+
+  const aliasBlock = aliasFunctions.join("\n");
+  return `${BROWSER_STD_JSON_SHIM}\n${aliasBlock}\n\n${transformed}`;
+}
+
+function rewriteBrowserStdFsNamespaceUsages(source: string) {
+  let rewritten = source;
+
+  for (const [member, replacement] of Object.entries(
+    STD_FS_NAMESPACE_MEMBERS,
+  )) {
+    const pattern = new RegExp(`\\bfs\\s*\\.\\s*${member}\\b`, "g");
+    rewritten = rewritten.replace(pattern, replacement);
+  }
+
+  return rewritten;
+}
+
+function transformBrowserStdFs(source: string) {
+  const aliasFunctions: string[] = [];
+  let usesBrowserShim = false;
+  let transformed = source;
+
+  transformed = transformed.replace(STD_FS_NAMESPACE_IMPORT_PATTERN, () => {
+    usesBrowserShim = true;
+    return "";
+  });
+
+  transformed = transformed.replace(
+    STD_FS_NAMED_IMPORT_PATTERN,
+    (_match: string, _indent: string, specifierBlock: string) => {
+      for (const rawSpecifier of specifierBlock.split(",")) {
+        const parsed = parseNamedImportSpecifier(rawSpecifier);
+        if (!parsed) {
+          continue;
+        }
+
+        const alias = buildBrowserStdFsAlias(parsed.imported, parsed.local);
+        if (alias) {
+          aliasFunctions.push(alias);
+          usesBrowserShim = true;
+        }
+      }
+
+      return "";
+    },
+  );
+
+  if (!usesBrowserShim) {
+    return source;
+  }
+
+  transformed = rewriteBrowserStdFsNamespaceUsages(transformed);
+  const aliasBlock = aliasFunctions.join("\n");
+  return `${BROWSER_STD_FS_SHIM}\n${aliasBlock}\n\n${transformed}`;
+}
+
+export function transformBrowserPlaygroundSource(source: string) {
+  return transformBrowserStdJson(transformBrowserStdFs(source));
 }
 
 export class TejXCompiler {
-  private wasmInstance: WebAssembly.Instance | null = null;
-  private memory: WebAssembly.Memory | null = null;
-  private compilerLogs: string[] = [];
-  private stdlibMetadata: Record<string, Record<string, number>> | null = null;
+  private compiler: BrowserCompiler | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init() {
-    try {
-      const response = await fetch(APP_CONFIG.COMPILER_WASM_URL);
-      const buffer = await response.arrayBuffer();
-
-      this.compilerLogs = [];
-
-      const compilerImports = {
-        env: {
-          compiler_log: (ptr: number | bigint, len: number | bigint) => {
-            if (!this.memory) return;
-            const p = Number(ptr);
-            const l = Number(len);
-            const mem = new Uint8Array(this.memory.buffer);
-            const str = new TextDecoder().decode(mem.subarray(p, p + l));
-            console.log("[Compiler Log]:", str);
-            this.compilerLogs.push(str);
-          },
-          longjmp: () => {
-            throw new Error("longjmp");
-          },
-          setjmp: () => 0,
-          __cxa_throw: () => {
-            throw new Error("exception");
-          },
-          __cxa_allocate_exception: () => 0,
-          __cxa_free_exception: () => {},
-          proc_exit: (code: number) => {
-            console.log(`Compiler exited with ${code}`);
-          },
-        },
-        wasi_snapshot_preview1: {
-          fd_write: (
-            _fd_val: number,
-            _iovs_val: number,
-            _iovs_len_val: number,
-            _nwritten_ptr: number,
-          ) => 0,
-          fd_close: () => 0,
-          fd_seek: () => 0,
-          fd_read: () => 0,
-          environ_sizes_get: () => 0,
-          environ_get: () => 0,
-          clock_time_get: () => 0,
-        },
-      };
-
-      const { instance } = await WebAssembly.instantiate(
-        buffer,
-        compilerImports,
-      );
-
-      this.wasmInstance = instance;
-      // Use exported memory
-      this.memory = instance.exports.memory as WebAssembly.Memory;
-
-      // Fallback if memory isn't exported (e.g. older builds)
-      if (!this.memory && (compilerImports.env as Record<string, any>).memory) {
-        this.memory = (compilerImports.env as Record<string, any>).memory;
-      }
-
-      // NEW: Fetch stdlib metadata from the compiler
-      const exports = instance.exports as any;
-      if (
-        exports.tejx_get_stdlib_metadata &&
-        exports.tejx_get_stdlib_metadata_len
-      ) {
-        const ptr = Number(exports.tejx_get_stdlib_metadata());
-        const len = Number(exports.tejx_get_stdlib_metadata_len());
-        const mem = new Uint8Array(this.memory!.buffer);
-        const json = new TextDecoder().decode(mem.subarray(ptr, ptr + len));
-        try {
-          this.stdlibMetadata = JSON.parse(json);
-          console.log(
-            "[TejXCompiler] StdLib Metadata loaded:",
-            this.stdlibMetadata,
-          );
-        } catch (e) {
-          console.error("[TejXCompiler] Failed to parse stdlib metadata:", e);
-        }
-      }
-
-      console.log("TejX Compiler initialized.");
-    } catch (err: unknown) {
-      console.error("WASM load failed:", err);
+    if (this.compiler) {
+      return;
     }
+
+    if (!this.initPromise) {
+      this.initPromise = BrowserCompilerApi.fromUrl("/tejxc_wasm.wasm", {
+        onLog: (line: string) => {
+          console.log("[Compiler Log]:", line);
+        },
+      })
+        .then((compiler: BrowserCompiler) => {
+          this.compiler = compiler;
+        })
+        .finally(() => {
+          this.initPromise = null;
+        });
+    }
+
+    await this.initPromise;
   }
 
   async compile(code: string): Promise<CompilerResult> {
-    if (!this.wasmInstance || !this.memory)
+    if (!this.compiler) {
+      await this.init();
+    }
+
+    if (!this.compiler) {
       return { output: ["Not initialized"], success: false };
+    }
 
-    this.compilerLogs = [];
+    const filename = "playground.tx";
+    const source = transformBrowserPlaygroundSource(code);
+    const report = this.compiler.compileToWatReport(
+      source,
+      filename,
+      {},
+    ) as CompileReport;
 
-    const exports = this.wasmInstance.exports as Record<string, any>;
+    if (!report.ok) {
+      const message =
+        report.full_error ||
+        report.message ||
+        (report.stage ? `Compile failed at ${report.stage}` : "") ||
+        "Compilation failed";
+      return { output: [message], success: false };
+    }
 
-    // Helper: Write string to compiler memory
-    const writeString = (str: string) => {
-      const bytes = new TextEncoder().encode(str);
-      const ptr = exports.tejx_alloc(bytes.length);
-      const p = Number(ptr);
-      new Uint8Array(this.memory!.buffer, p, bytes.length).set(bytes);
-      return { ptr, len: bytes.length };
-    };
-
-    let capturedOutputBuffer = "";
+    const output: string[] = [];
 
     try {
-      const source = writeString(code);
-      const filename = writeString("playground.tx");
+      const host = (await this.compiler.compileAndInstantiate(source, {
+        filename,
+        compileReport: report,
+        onOutput: (line: string) => {
+          output.push(line);
+        },
+      })) as ProgramHost;
 
-      // 1. Compile directly to WASM
-      // fn tejx_compile(src_ptr, src_len, file_ptr, file_len, async_enabled) -> *const u8
-      const resultPtr = exports.tejx_compile(
-        Number(source.ptr),
-        Number(source.len),
-        Number(filename.ptr),
-        Number(filename.len),
-        true, // async_enabled
-      );
+      host.runMain();
 
-      // Read result from LAST_RESULT via tejx_get_result_len (if exported)
-      // or assume resultPtr points to valid memory if we implemented that way.
-      // In our Rust implementation:
-      // resultPtr is pointer to LAST_RESULT content.
-      // We also need length.
-
-      const resultLen = Number(
-        exports.tejx_get_result_len ? exports.tejx_get_result_len() : 0,
-      );
-      const p = Number(resultPtr);
-
-      const resultBytes = new Uint8Array(this.memory!.buffer).slice(
-        p,
-        p + resultLen,
-      );
-
-      // Check for error string
-      let resultStr = new TextDecoder().decode(resultBytes).trim();
-
-      // 1.5 Handle JSON Error Messages from Compiler
-      const jsonMatch = resultStr.match(/\{"error":true,.*\}/);
-      if (jsonMatch) {
-        try {
-          const errObj = JSON.parse(jsonMatch[0]);
-          if (errObj.error) {
-            let msg = errObj.full_error || errObj.message;
-            if (errObj.line) {
-              msg = `[Line ${errObj.line}] ${msg}`;
-            }
-            return { output: [msg], success: false };
-          }
-        } catch (e) {
-          console.warn("[TejXCompiler] Failed to parse error JSON:", e);
-        }
-      }
-
-      const isError =
-        resultStr.includes("WASM_COMPILE_ERROR") ||
-        resultStr.includes("Compilation Error") ||
-        resultStr.startsWith("Error:");
-
-      if (isError) {
-        const lineMatch =
-          resultStr.match(/line\s+(\d+)/i) || resultStr.match(/:(\d+):/);
-        let finalMsg = resultStr;
-        if (lineMatch) {
-          const lineNum = lineMatch[1];
-          if (!resultStr.startsWith(`[Line ${lineNum}]`)) {
-            finalMsg = `[Line ${lineNum}] ${resultStr.replace(/^WASM_COMPILE_ERROR:\s*/i, "").replace(/^Error:\s*/i, "")}`;
-          }
-        }
-        return { output: [finalMsg], success: false };
-      }
-
-      let binary: Uint8Array = resultBytes;
-
-      // DETECT OUTPUT FORMAT: WAT or BINARY?
-      // Magic header for WASM binary is: \0asm (0x00 0x61 0x73 0x6d)
-      if (
-        resultBytes.length >= 4 &&
-        resultBytes[0] === 0x00 &&
-        resultBytes[1] === 0x61 &&
-        resultBytes[2] === 0x73 &&
-        resultBytes[3] === 0x6d
-      ) {
-        // It's binary, use directly
-      } else if (resultStr.trim().startsWith("(module")) {
-        // It's text (WAT), convert to binary using WABT
-
-        // PATCH: Inject missing imports for Map operations if they are used but not imported
-        // Use regex to insert AFTER the module header (and optional name)
-        // Matches (module $optionalName ... or (module ...
-        const moduleHeaderRegex = /(\(module(?:\s+\$[\w\d_$.]+)?)/;
-
-        let missingImports = "";
-        for (const imp of runtimePatches) {
-          // Check if used (e.g. call $name) but not defined/imported (e.g. (func $name))
-          if (
-            resultStr.includes(`$${imp.name}`) &&
-            !resultStr.includes(`(func $${imp.name}`)
-          ) {
-            missingImports += ` (import "env" "${imp.name}" ${imp.sig})`;
-            console.log(
-              `[TejXCompiler] Prepared missing import for ${imp.name}`,
-            );
-          }
-        }
-
-        if (missingImports) {
-          // Use callback to avoid special replacement patterns with $
-          resultStr = resultStr.replace(
-            moduleHeaderRegex,
-            (match) => match + missingImports,
-          );
-        }
-
-        if (!(window as any).WabtModule) {
-          return {
-            output: [
-              "Compiler output WAT but WabtModule not found on window. Please include libwabt.js or update compiler to output binary.",
-            ],
-            success: false,
-          };
-        }
-        const wabt = await (window as any).WabtModule();
-        const module = wabt.parseWat("playground.wat", resultStr);
-        binary = new Uint8Array(module.toBinary({}).buffer);
-        console.log("[TejXCompiler] Converted WAT to WASM Binary via WABT");
-      } else {
-        console.warn(
-          "[TejXCompiler] Unknown output format, attempting to use as binary...",
-          resultStr.substring(0, 50),
+      if (host.unsupportedCalls.size) {
+        output.push(
+          `Unsupported runtime imports hit: ${[...host.unsupportedCalls].join(", ")}`,
         );
       }
 
-      const userMemory = new WebAssembly.Memory({ initial: 256 });
-
-      const runtimeImports = createRuntime(
-        userMemory,
-        (str) => {
-          capturedOutputBuffer += str;
-        },
-        this.stdlibMetadata || undefined,
-      );
-
-      // 4. Run
-      const { instance: userInstance } = (await WebAssembly.instantiate(
-        binary,
-        runtimeImports,
-      )) as unknown as WebAssembly.WebAssemblyInstantiatedSource;
-
-      const userExports = userInstance.exports;
-      if (userExports.main) {
-        (userExports.main as () => void)();
-      }
-
-      const finalOutput = capturedOutputBuffer.split("\n");
-      // Remove trailing empty line if the last char was a newline
-      if (
-        finalOutput.length > 0 &&
-        finalOutput[finalOutput.length - 1] === "" &&
-        capturedOutputBuffer.endsWith("\n")
-      ) {
-        finalOutput.pop();
-      }
-
-      return { output: finalOutput, success: true, binary };
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const combinedOutput = capturedOutputBuffer
-        ? [...capturedOutputBuffer.split("\n"), "Error: " + msg]
-        : ["Error: " + msg];
-      return {
-        output: combinedOutput.filter((line) => line !== ""),
-        success: false,
-      };
+      return { output, success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { output: [message], success: false };
     }
   }
 }

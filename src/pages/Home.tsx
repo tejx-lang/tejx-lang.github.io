@@ -9,7 +9,7 @@ const Home: React.FC = () => {
   return (
     <main className="overflow-x-hidden">
       {/* Hero Section */}
-      <section className="container pt-10 md:pt-16 pb-12 md:pb-20 relative">
+      <section className="container pt-16 md:pt-20 pb-20 relative overflow-hidden">
         {/* Background Gradients */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] h-[400px] md:h-[600px] opacity-20 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/30 to-blue-500/30 blur-[60px] md:blur-[100px] rounded-full" />
@@ -26,17 +26,18 @@ const Home: React.FC = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
               </span>
-              v{APP_CONFIG.VERSION} is now live
+              v{APP_CONFIG.VERSION}
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-black leading-[1.1] mb-6 tracking-tight">
-              The Future of <br className="hidden md:block" />
-              <span className="gradient-text">Modern Programming</span>
+            <h1 className="text-5xl md:text-7xl font-black leading-[1.1] mb-6 tracking-tight">
+              TejX <br />
+              <span className="gradient-text">Programming Language</span>
             </h1>
 
             <p className="text-xl text-gray-400 mb-8 leading-relaxed max-w-lg">
-              {APP_CONFIG.DESCRIPTION} Build high-performance applications with
-              the simplicity of TypeScript and the speed of C.
+              {APP_CONFIG.DESCRIPTION} Write programs with static typing,
+              ahead-of-time compilation, async workflows, native threads, and a
+              moving garbage-collected runtime.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -87,10 +88,10 @@ const Home: React.FC = () => {
         <div className="container py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { label: "Runtime", value: "Zero GC" },
+              { label: "Runtime", value: "Moving GC" },
               { label: "Backend", value: "LLVM 18" },
-              { label: "Safety", value: "Borrow Checker" },
-              { label: "License", value: "Open Source" },
+              { label: "Safety", value: "Explicit Roots" },
+              { label: "Concurrency", value: "Async + Threads" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <div className="text-2xl md:text-3xl font-black mb-1">
@@ -109,11 +110,11 @@ const Home: React.FC = () => {
       <section id="features" className="container py-24">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-black mb-6">
-            Built for Performance
+            Language Highlights
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Experience the power of a systems language with the ergonomics of a
-            modern programming language.
+            TejX brings together native compilation, explicit types, a managed
+            runtime, and concurrency primitives in one language.
           </p>
         </div>
 
@@ -123,29 +124,29 @@ const Home: React.FC = () => {
               icon: Zap,
               color: "text-purple-400",
               bg: "bg-purple-500/10 border-purple-500/20",
-              title: "Native Performance",
-              desc: "TejX is a compiled language that targets native machine code via LLVM, delivering C++ level performance with the ergonomics of TypeScript.",
+              title: "Native Compilation",
+              desc: "TejX compiles through LLVM to native machine code for local binaries and toolchain workflows.",
             },
             {
               icon: Shield,
               color: "text-blue-400",
               bg: "bg-blue-500/10 border-blue-500/20",
-              title: "Ownership Memory",
-              desc: "A unique ownership-based memory model ensures safety without a garbage collector, eliminating data races and memory leaks at compile time.",
+              title: "Runtime Model",
+              desc: "TejX uses a moving garbage collector with explicit root tracking and strict source-level typing for managed values and runtime services.",
             },
             {
               icon: Cpu,
               color: "text-green-400",
               bg: "bg-green-500/10 border-green-500/20",
-              title: "Compiled & Multithreaded",
-              desc: "Built from the ground up for modern hardware, TejX supports efficient multithreading and parallel execution for maximum throughput.",
+              title: "Concurrency",
+              desc: "TejX includes async workflows for event-loop tasks and native OS threads for parallel work.",
             },
             {
               icon: Code,
               color: "text-yellow-400",
               bg: "bg-yellow-500/10 border-yellow-500/20",
-              title: "TypeScript Syntax",
-              desc: "Write high-performance systems code using the syntax you already know. TypeScript-like types and patterns meet native power.",
+              title: "Language Features",
+              desc: "TejX includes functions, classes, interfaces, Optional<T>, modules, collections, and a standard library for common tasks.",
             },
           ].map((feat, i) => (
             <motion.div
@@ -175,8 +176,8 @@ const Home: React.FC = () => {
               Ready to start building?
             </h2>
             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Join the developers building the next generation of
-              high-performance applications with TejX.
+              Explore the language, install the toolchain, and start writing
+              TejX programs.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
