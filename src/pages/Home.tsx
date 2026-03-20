@@ -7,15 +7,15 @@ import CodeShowcase from "../components/CodeShowcase";
 
 const Home: React.FC = () => {
   return (
-    <>
+    <main className="overflow-x-hidden">
       {/* Hero Section */}
       <section className="container pt-16 md:pt-20 pb-20 relative overflow-hidden">
         {/* Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] opacity-20 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/30 to-blue-500/30 blur-[100px] rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] h-[400px] md:h-[600px] opacity-20 pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/30 to-blue-500/30 blur-[60px] md:blur-[100px] rounded-full" />
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-center relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -40,16 +40,16 @@ const Home: React.FC = () => {
               moving garbage-collected runtime.
             </p>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <Link
                 to="/get-started"
-                className="flex items-center gap-2 px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-gray-100 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-gray-100 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
               >
                 Start Building <ArrowRight size={20} />
               </Link>
               <Link
                 to="/docs"
-                className="flex items-center gap-2 px-8 py-4 rounded-full border border-white/10 hover:bg-white/5 transition-colors font-bold"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-white/10 hover:bg-white/5 transition-colors font-bold"
               >
                 Documentation
               </Link>
@@ -57,13 +57,13 @@ const Home: React.FC = () => {
           </motion.div>
 
           {/* Hero Visual */}
-          <div className="relative">
+          <div className="relative lg:mt-0 mt-8">
             <CodeShowcase />
-            {/* Floating Elements */}
+            {/* Floating Elements - Adjusted for smaller screens and hidden on mobile */}
             <motion.div
               animate={{ y: [0, -20, 0] }}
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-10 -right-10 p-4 glass-card bg-black/40 border-purple-500/30 backdrop-blur-xl z-20 hidden md:block"
+              className="absolute -top-6 -right-4 md:-top-10 md:-right-6 lg:-right-10 p-4 glass-card bg-black/40 border-purple-500/30 backdrop-blur-xl z-20 hidden md:flex"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300">
@@ -118,7 +118,7 @@ const Home: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12">
           {[
             {
               icon: Zap,
@@ -169,7 +169,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="container pb-24">
+      <section className="container pb-12">
         <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-b from-white/5 to-black p-12 text-center">
           <div className="relative z-10">
             <h2 className="text-3xl md:text-5xl font-black mb-6">
@@ -201,7 +201,7 @@ const Home: React.FC = () => {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-purple-500/10 blur-[100px] pointer-events-none" />
         </div>
       </section>
-    </>
+    </main>
   );
 };
 

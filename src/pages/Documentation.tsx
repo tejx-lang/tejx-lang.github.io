@@ -19,7 +19,10 @@ const Documentation: React.FC = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const scrollToSubsection = (targetSectionId: string, subsectionId: string) => {
+  const scrollToSubsection = (
+    targetSectionId: string,
+    subsectionId: string,
+  ) => {
     setIsSidebarOpen(false);
 
     if (activeSection !== targetSectionId) {
@@ -59,7 +62,10 @@ const Documentation: React.FC = () => {
           `}
         >
           <div className="p-8 md:p-0 md:pb-24">
-            <div className="flex items-center gap-3 mb-10 px-2">
+            <div
+              className="flex items-center gap-3 mb-10 px-2 cursor-pointer md:cursor-default"
+              onClick={() => setIsSidebarOpen(false)}
+            >
               <Book className="text-purple-500" />
               <span className="text-xl font-black uppercase tracking-[0.2em]">
                 Docs

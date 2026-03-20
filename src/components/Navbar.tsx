@@ -18,6 +18,7 @@ const Navbar: React.FC = () => {
         {/* Logo */}
         <Link
           to="/"
+          onClick={() => setIsOpen(false)}
           className="flex items-center gap-3 text-xl font-black tracking-tighter hover:opacity-80 transition-opacity"
         >
           <img
@@ -82,6 +83,7 @@ const Navbar: React.FC = () => {
                 href={APP_CONFIG.GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => setIsOpen(false)}
                 className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 font-bold"
               >
                 <Github size={20} /> GitHub

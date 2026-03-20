@@ -84,7 +84,8 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
       className="playground-container glass-card"
       style={{
         padding: "1rem",
-        height: height,
+        minHeight: height,
+        height: "auto",
         display: "flex",
         flexDirection: "column",
       }}
@@ -144,34 +145,9 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
         </div>
       </div>
 
-      <div
-        className="editor-layout"
-        style={{
-          display: "flex",
-          gap: "1rem",
-          flex: 1, // Fill available space
-          minHeight: 0, // CRITICAL for flex height inheritance
-        }}
-      >
-        <div
-          style={{
-            flex: 1.5,
-            borderRadius: "12px",
-            overflow: "hidden",
-            border: "1px solid var(--glass-border)",
-            position: "relative", // Required for absolute child
-            minHeight: 0,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-          >
+      <div className="editor-layout flex flex-col lg:flex-row gap-4 flex-1 min-h-[600px] lg:min-h-0">
+        <div className="flex-[1.5] lg:flex-[1.5] relative rounded-xl overflow-hidden border border-white/10 min-h-[400px] lg:min-h-0">
+          <div className="absolute inset-0">
             <Editor
               height="100%"
               defaultLanguage="typescript"
@@ -231,22 +207,7 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
             />
           </div>
         </div>
-        <div
-          className="console-output"
-          style={{
-            flex: 1,
-            height: "100%",
-            background: "#000",
-            borderRadius: "12px",
-            padding: "1rem",
-            fontFamily: "var(--font-mono)",
-            fontSize: "13px",
-            border: "1px solid var(--glass-border)",
-            overflowY: "auto",
-            overflowX: "auto",
-            whiteSpace: "pre",
-          }}
-        >
+        <div className="console-output flex-1 lg:flex-1 h-[300px] lg:h-full bg-black rounded-xl p-4 font-mono text-[13px] border border-white/10 overflow-auto whitespace-pre">
           <div
             style={{
               display: "flex",

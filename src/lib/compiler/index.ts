@@ -44,8 +44,7 @@ interface BrowserCompilerConstructor {
   ): Promise<BrowserCompiler>;
 }
 
-const BrowserCompilerApi =
-  BrowserTejxCompiler as BrowserCompilerConstructor;
+const BrowserCompilerApi = BrowserTejxCompiler as BrowserCompilerConstructor;
 
 const STD_JSON_IMPORT_PATTERN =
   /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:json["'];?[ \t]*$/gm;
@@ -553,7 +552,9 @@ function transformBrowserStdJson(source: string) {
 function rewriteBrowserStdFsNamespaceUsages(source: string) {
   let rewritten = source;
 
-  for (const [member, replacement] of Object.entries(STD_FS_NAMESPACE_MEMBERS)) {
+  for (const [member, replacement] of Object.entries(
+    STD_FS_NAMESPACE_MEMBERS,
+  )) {
     const pattern = new RegExp(`\\bfs\\s*\\.\\s*${member}\\b`, "g");
     rewritten = rewritten.replace(pattern, replacement);
   }

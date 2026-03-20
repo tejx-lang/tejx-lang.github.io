@@ -30,8 +30,8 @@ function main() {
         </div>
 
         {/* Code Content */}
-        <div className="p-6 overflow-x-auto min-h-[220px]">
-          <pre className="font-mono text-sm leading-relaxed">
+        <div className="p-4 md:p-6 overflow-x-auto min-h-[220px]">
+          <pre className="font-mono text-xs md:text-sm leading-relaxed">
             <code className="text-gray-300">
               {codeSnippet.split("\n").map((line, i) => (
                 <div key={i} className="flex">
