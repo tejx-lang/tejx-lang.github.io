@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Copy, Check } from "lucide-react";
+import CodeBlock from "../components/CodeBlock";
 const InstallBlock: React.FC<{ command: string; label: string }> = ({
   command,
   label,
@@ -121,22 +122,20 @@ const GetStarted: React.FC = () => {
                 action.
               </p>
             </div>
-            <div className="w-full max-w-xl bg-[#0a0a0a] rounded-xl overflow-hidden border border-white/5">
-              <div className="px-4 py-2 bg-white/5 border-b border-white/5 text-xs font-mono text-gray-500 flex justify-between items-center">
-                <span>main.tx</span>
-              </div>
-              <pre className="p-6 font-mono text-sm text-orange-200/80 leading-relaxed overflow-x-auto">
-                {`import { parse, stringify } from "std:json";
+            <div className="w-full max-w-xl">
+              <CodeBlock
+                filename="main.tx"
+                code={`import { parse, stringify } from "std:json";
 
 function main() {
     let x = 42;
     let s = stringify(x);
     print("Stringified x:", s);
 
-    let parsed:int = parse(s);
+    let parsed: int = parse(s);
     print("Parsed value:", parsed);
 }`}
-              </pre>
+              />
             </div>
           </motion.div>
 

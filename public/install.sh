@@ -153,6 +153,44 @@ install_release() {
     cp -R "${STDLIB_PATH}/." "$LIB_DIR/"
 }
 
+# ── PATH Configuration ──
+update_path() {
+    local shell_config=""
+    
+    # Detect shell config file
+    if [[ "$SHELL" == */zsh ]]; then
+        shell_config="$HOME/.zshrc"
+    elif [[ "$SHELL" == */bash ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            shell_config="$HOME/.bash_profile"
+        else
+            shell_config="$HOME/.bashrc"
+        fi
+    fi
+    
+    # Fallback to .profile if specific shell config not found
+    if [ -z "$shell_config" ] || [ ! -f "$shell_config" ]; then
+        if [ -f "$HOME/.zshrc" ]; then shell_config="$HOME/.zshrc"
+        elif [ -f "$HOME/.bash_profile" ]; then shell_config="$HOME/.bash_profile"
+        elif [ -f "$HOME/.bashrc" ]; then shell_config="$HOME/.bashrc"
+        else shell_config="$HOME/.profile"
+        fi
+    fi
+
+    # Create file if it doesn't exist
+    touch "$shell_config"
+
+    if ! grep -q ".tejx/bin" "$shell_config"; then
+        echo "" >> "$shell_config"
+        echo "# TejX Toolchain" >> "$shell_config"
+        echo "export PATH=\"\$HOME/.tejx/bin:\$PATH\"" >> "$shell_config"
+        printf "${CYAN}➜${RESET} Added TejX to PATH in ${BOLD}%s${RESET}\n" "$shell_config"
+        printf "${CYAN}➜${RESET} Please restart your terminal or run: ${BOLD}source %s${RESET}\n" "$shell_config"
+    else
+        printf "${CYAN}➜${RESET} TejX is already in PATH in ${BOLD}%s${RESET}\n" "$shell_config"
+    fi
+}
+
 # ── Verify Installation ──
 verify() {
     if [ -x "${BIN_DIR}/${BINARY_NAME}" ] && [ -f "${RUNTIME_DIR}/${RUNTIME_NAME}" ]; then
@@ -169,14 +207,12 @@ verify() {
         printf "  ${BOLD}Stdlib:${RESET}   %s\n" "$LIB_DIR"
         printf "  ${BOLD}Runtime:${RESET}  %s\n" "${RUNTIME_DIR}/${RUNTIME_NAME}"
         echo ""
-        if [ "$PATH_BINARY" != "${BIN_DIR}/${BINARY_NAME}" ]; then
-            warn "'${BIN_DIR}' is not in your PATH."
-            printf "  Add this to your shell config:\n"
-            printf "    ${BOLD}export PATH=\"\\$HOME/.tejx/bin:\\$PATH\"${RESET}\n"
-            echo ""
-        fi
+
+        update_path
+        echo ""
+
         printf "  ${CYAN}Get started:${RESET}\n"
-        printf "    ${BOLD}$${RESET} tejxc main.tx && ./main\n"
+        printf "    ${BOLD}\$${RESET} tejxc main.tx && ./main\n"
         echo ""
     else
         error "Installation did not complete successfully."

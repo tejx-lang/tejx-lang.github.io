@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useEffectEvent } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, RotateCcw, Terminal } from "lucide-react";
+import { LoaderCircle, Play, RotateCcw, Terminal } from "lucide-react";
 import { compiler } from "../lib/compiler";
 
 const DEFAULT_CODE = `function main() {
@@ -42,24 +42,35 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [executionTime, setExecutionTime] = useState<string | null>(null);
 
+  const runSource = useEffectEvent(async (source: string) => {
+    setIsRunning(true);
+    setExecutionTime(null);
+    const startTime = performance.now();
+
+    try {
+      const result = await compiler.compile(source);
+      const endTime = performance.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(3);
+
+      if (result.success) {
+        setExecutionTime(duration);
+      }
+
+      setOutput(result.output);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setOutput([message]);
+    } finally {
+      setIsRunning(false);
+    }
+  });
+
   useEffect(() => {
     compiler.init();
   }, []);
 
   const runCode = async () => {
-    setIsRunning(true);
-    setExecutionTime(null);
-    const startTime = performance.now();
-    const result = await compiler.compile(code);
-    const endTime = performance.now();
-    const duration = ((endTime - startTime) / 1000).toFixed(3);
-
-    if (result.success) {
-      setExecutionTime(duration);
-    }
-
-    setOutput(result.output);
-    setIsRunning(false);
+    await runSource(code);
   };
 
   const resetCode = () => {
@@ -121,8 +132,14 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               opacity: isRunning ? 0.7 : 1,
               cursor: isRunning ? "default" : "pointer",
             }}
+            aria-busy={isRunning}
           >
-            <Play size={16} fill="white" /> {isRunning ? "Running..." : "Run"}
+            {isRunning ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <Play size={16} fill="white" />
+            )}{" "}
+            {isRunning ? "Running..." : "Run"}
           </button>
         </div>
       </div>
@@ -162,11 +179,13 @@ const Playground: React.FC<PlaygroundProps> = ({ height = "600px" }) => {
               value={code}
               onChange={(val) => setCode(val || "")}
               onMount={(_editor, monaco) => {
-                // Disable TypeScript diagnostics that don't apply to TejX
+                // TejX syntax intentionally diverges from TypeScript in places
+                // like `import { readFileSync } from "std:fs";`, so Monaco's
+                // TS parser is too noisy here.
                 monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
                   {
                     noSemanticValidation: true,
-                    noSyntaxValidation: false,
+                    noSyntaxValidation: true,
                   },
                 );
 

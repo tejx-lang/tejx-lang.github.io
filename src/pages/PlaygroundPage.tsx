@@ -21,51 +21,68 @@ const PlaygroundPage: React.FC = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "0.55rem",
-          padding: "0.45rem 0.7rem",
+          gap: "0.6rem",
+          padding: "0.42rem 0.62rem",
           borderColor: "rgba(245, 158, 11, 0.25)",
-          background: "rgba(245, 158, 11, 0.08)",
-          flexWrap: "nowrap",
+          background:
+            "linear-gradient(90deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.04))",
+          flexWrap: "wrap",
           flexShrink: 0,
+          rowGap: "0.4rem",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.45rem",
+            gap: "0.55rem",
             flex: 1,
             minWidth: 0,
           }}
         >
-          <AlertTriangle
-            size={14}
-            style={{ color: "#f59e0b", flexShrink: 0 }}
-          />
-          <p
+          <div
             style={{
-              color: "#f8fafc",
-              margin: 0,
-              lineHeight: 1.2,
-              fontSize: "0.82rem",
+              width: "1.5rem",
+              height: "1.5rem",
+              borderRadius: "999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(245, 158, 11, 0.14)",
+              border: "1px solid rgba(245, 158, 11, 0.2)",
+              flexShrink: 0,
             }}
           >
-            Browser mode may miss some features. Install TejX to use
-            everything.
-          </p>
+            <AlertTriangle size={12} style={{ color: "#f59e0b" }} />
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                color: "#cbd5e1",
+                margin: 0,
+                lineHeight: 1.22,
+                fontSize: "0.74rem",
+              }}
+            >
+              Browser Preview: Runs a limited TejX build for basic syntax and
+              language testing. Install locally for the full compiler and
+              runtime features.
+            </p>
+          </div>
         </div>
 
         <Link
           to="/docs/get-started"
           className="btn-secondary"
           style={{
-            padding: "0.34rem 0.65rem",
-            borderRadius: "9px",
+            padding: "0.32rem 0.58rem",
+            borderRadius: "8px",
             border: "1px solid rgba(245, 158, 11, 0.35)",
             color: "#fcd34d",
             textDecoration: "none",
             fontWeight: 600,
-            fontSize: "0.78rem",
+            fontSize: "0.74rem",
             lineHeight: 1,
             whiteSpace: "nowrap",
             flexShrink: 0,
