@@ -448,6 +448,20 @@ const STD_FS_NAMESPACE_MEMBERS = {
   writeFile: "__tejx_browser_fs_writeFile",
 } as const;
 
+const DECIMAL_LITERAL_PATTERN = /\b\d+\.\d+(?:[eE][+-]?\d+)?\b/;
+const SUSPICIOUS_FLOAT_OUTPUT_PATTERN = /\b-?\d{16,}\b/;
+
+type FallbackFsEntry = { kind: "dir" } | { kind: "file"; content: string };
+type JsFallbackHelpers = {
+  len: (value: unknown) => number;
+  print: (...args: unknown[]) => void;
+  stdFs: ReturnType<typeof createJsFallbackStdFs>;
+  stdJson: {
+    parse: (input: string) => unknown;
+    stringify: (value: unknown, space?: unknown) => string;
+  };
+};
+
 function parseNamedImportSpecifier(specifier: string) {
   const match = specifier
     .trim()
@@ -461,6 +475,25 @@ function parseNamedImportSpecifier(specifier: string) {
     imported: match[1],
     local: match[2] ?? match[1],
   };
+}
+
+function buildJsImportDestructuring(specifierBlock: string) {
+  const members: string[] = [];
+
+  for (const rawSpecifier of specifierBlock.split(",")) {
+    const parsed = parseNamedImportSpecifier(rawSpecifier);
+    if (!parsed) {
+      return null;
+    }
+
+    members.push(
+      parsed.imported === parsed.local
+        ? parsed.imported
+        : `${parsed.imported}: ${parsed.local}`,
+    );
+  }
+
+  return members.join(", ");
 }
 
 function buildBrowserStdJsonAlias(imported: string, local: string) {
@@ -605,6 +638,321 @@ export function transformBrowserPlaygroundSource(source: string) {
   return transformBrowserStdJson(transformBrowserStdFs(source));
 }
 
+function formatJsFallbackNumber(value: number) {
+  if (Number.isNaN(value)) {
+    return "NaN";
+  }
+
+  if (!Number.isFinite(value)) {
+    return value > 0 ? "Infinity" : "-Infinity";
+  }
+
+  return Number.isInteger(value) ? value.toFixed(0) : `${value}`;
+}
+
+function formatJsFallbackValue(
+  value: unknown,
+  options: { quoteStrings?: boolean; seen?: WeakSet<object> } = {},
+): string {
+  const quoteStrings = options.quoteStrings ?? false;
+  const seen = options.seen ?? new WeakSet<object>();
+
+  if (value === null || value === undefined) {
+    return "None";
+  }
+
+  if (typeof value === "string") {
+    return quoteStrings ? JSON.stringify(value) : value;
+  }
+
+  if (typeof value === "number") {
+    return formatJsFallbackNumber(value);
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    if (seen.has(value)) {
+      return "[Circular]";
+    }
+
+    seen.add(value);
+    const rendered = `[${value
+      .map((item) => formatJsFallbackValue(item, { quoteStrings: true, seen }))
+      .join(", ")}]`;
+    seen.delete(value);
+    return rendered;
+  }
+
+  if (typeof value === "object") {
+    if (seen.has(value)) {
+      return "{ [Circular] }";
+    }
+
+    seen.add(value);
+    const rendered = `{ ${Object.entries(value)
+      .filter(([, child]) => child !== undefined && typeof child !== "function")
+      .map(
+        ([key, child]) =>
+          `${key}: ${formatJsFallbackValue(child, {
+            quoteStrings: typeof child === "string",
+            seen,
+          })}`,
+      )
+      .join(", ")} }`;
+    seen.delete(value);
+    return rendered;
+  }
+
+  return String(value);
+}
+
+function createJsFallbackStdFs() {
+  const fs = new Map<string, FallbackFsEntry>([
+    ["/", { kind: "dir" }],
+    [".", { kind: "dir" }],
+  ]);
+
+  const normalizePath = (path: string) => {
+    const raw = path.trim();
+    if (!raw) {
+      return ".";
+    }
+
+    const normalized = raw
+      .replace(/\\/g, "/")
+      .replace(/\/+/g, "/")
+      .replace(/\/$/, "");
+
+    return normalized || "/";
+  };
+
+  return {
+    existsSync(path: string) {
+      return fs.has(normalizePath(path));
+    },
+    readFileSync(path: string) {
+      const entry = fs.get(normalizePath(path));
+      if (!entry || entry.kind !== "file") {
+        throw new Error(`ENOENT: ${path}`);
+      }
+      return entry.content;
+    },
+    writeFileSync(path: string, content: string) {
+      fs.set(normalizePath(path), { kind: "file", content });
+      return true;
+    },
+    appendFileSync(path: string, content: string) {
+      const normalized = normalizePath(path);
+      const existing = fs.get(normalized);
+      const prefix = existing && existing.kind === "file" ? existing.content : "";
+      fs.set(normalized, { kind: "file", content: `${prefix}${content}` });
+      return true;
+    },
+    unlinkSync(path: string) {
+      const normalized = normalizePath(path);
+      const entry = fs.get(normalized);
+      if (!entry || entry.kind !== "file") {
+        return false;
+      }
+      fs.delete(normalized);
+      return true;
+    },
+    mkdirSync(path: string) {
+      fs.set(normalizePath(path), { kind: "dir" });
+      return true;
+    },
+    readdirSync(path: string) {
+      const basePath = normalizePath(path);
+      const prefix = basePath === "/" ? "/" : `${basePath}/`;
+      const entries = new Set<string>();
+
+      for (const candidate of fs.keys()) {
+        if (candidate === basePath || !candidate.startsWith(prefix)) {
+          continue;
+        }
+
+        const child = candidate.slice(prefix.length).split("/")[0];
+        if (child) {
+          entries.add(child);
+        }
+      }
+
+      return [...entries];
+    },
+    async readFile(path: string) {
+      return this.readFileSync(path);
+    },
+    async writeFile(path: string, content: string) {
+      return this.writeFileSync(path, content);
+    },
+    read_to_string(path: string) {
+      return this.readFileSync(path);
+    },
+    mkdir(path: string) {
+      return this.mkdirSync(path);
+    },
+  };
+}
+
+function stripJsFallbackParamTypes(params: string) {
+  if (!params.trim()) {
+    return params;
+  }
+
+  return params
+    .split(",")
+    .map((param) =>
+      param
+        .replace(
+          /^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*\s*=\s*(.+)\s*$/,
+          "$1 = $2",
+        )
+        .replace(
+          /^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*\s*$/,
+          "$1",
+        ),
+    )
+    .join(", ");
+}
+
+function transpileJsFallbackSource(source: string) {
+  let unsupportedImport = false;
+
+  let rewritten = source.replace(
+    STD_JSON_IMPORT_PATTERN,
+    (_match: string, indent: string, specifierBlock: string) => {
+      const members = buildJsImportDestructuring(specifierBlock);
+      if (!members) {
+        unsupportedImport = true;
+        return _match;
+      }
+
+      return `${indent}const { ${members} } = helpers.stdJson;`;
+    },
+  );
+
+  rewritten = rewritten.replace(STD_FS_NAMESPACE_IMPORT_PATTERN, () => {
+    return "const fs = helpers.stdFs;";
+  });
+
+  rewritten = rewritten.replace(
+    STD_FS_NAMED_IMPORT_PATTERN,
+    (_match: string, indent: string, specifierBlock: string) => {
+      const members = buildJsImportDestructuring(specifierBlock);
+      if (!members) {
+        unsupportedImport = true;
+        return _match;
+      }
+
+      return `${indent}const { ${members} } = helpers.stdFs;`;
+    },
+  );
+
+  if (unsupportedImport) {
+    return null;
+  }
+
+  return rewritten
+    .replace(
+      /function\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/g,
+      (_match: string, name: string, params: string) =>
+        `function ${name}(${stripJsFallbackParamTypes(params)})`,
+    )
+    .replace(/\)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(\s*\{)/g, ")$1")
+    .replace(
+      /\b(let|const|var)\s+([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(?=\s*=)/g,
+      "$1 $2",
+    )
+    .replace(/\s+as\s+[A-Za-z_][\w<>, ?|:[\]]*/g, "")
+    .replace(/\bNone\b/g, "null");
+}
+
+function shouldUseJsFloatFallback(source: string, output: string[]) {
+  return (
+    DECIMAL_LITERAL_PATTERN.test(source) &&
+    output.some((line) => SUSPICIOUS_FLOAT_OUTPUT_PATTERN.test(line))
+  );
+}
+
+async function tryRunJsFallback(source: string): Promise<CompilerResult | null> {
+  const transpiled = transpileJsFallbackSource(source);
+  if (!transpiled) {
+    return null;
+  }
+
+  const output: string[] = [];
+  const stdFs = createJsFallbackStdFs();
+  const helpers: JsFallbackHelpers = {
+    len(value: unknown) {
+      if (typeof value === "string" || Array.isArray(value)) {
+        return value.length;
+      }
+
+      if (value && typeof value === "object") {
+        return Object.keys(value).length;
+      }
+
+      return 0;
+    },
+    print(...args: unknown[]) {
+      const seen = new WeakSet<object>();
+      output.push(
+        args
+          .map((arg) => formatJsFallbackValue(arg, { seen }))
+          .join(" "),
+      );
+    },
+    stdFs,
+    stdJson: {
+      parse(input: string) {
+        return JSON.parse(input) as unknown;
+      },
+      stringify(value: unknown, space?: unknown) {
+        return JSON.stringify(
+          value,
+          null,
+          typeof space === "number" || typeof space === "string" ? space : 0,
+        );
+      },
+    },
+  };
+
+  const AsyncFunction = Object.getPrototypeOf(
+    async function noop() {
+      return undefined;
+    },
+  ).constructor as new (
+    ...args: string[]
+  ) => (helpers: JsFallbackHelpers) => Promise<unknown>;
+
+  try {
+    const run = new AsyncFunction(
+      "helpers",
+      `"use strict";
+const print = (...args) => helpers.print(...args);
+const len = (value) => helpers.len(value);
+${transpiled}
+if (typeof main !== "function") {
+  throw new Error("Program must define a main() function.");
+}
+return await main();
+`,
+    );
+
+    await run(helpers);
+    return { output, success: true };
+  } catch {
+    return null;
+  }
+}
+
 export class TejXCompiler {
   private compiler: BrowserCompiler | null = null;
   private initPromise: Promise<void> | null = null;
@@ -649,6 +997,13 @@ export class TejXCompiler {
     ) as CompileReport;
 
     if (!report.ok) {
+      if (DECIMAL_LITERAL_PATTERN.test(code)) {
+        const fallback = await tryRunJsFallback(code);
+        if (fallback) {
+          return fallback;
+        }
+      }
+
       const message =
         report.full_error ||
         report.message ||
@@ -676,8 +1031,22 @@ export class TejXCompiler {
         );
       }
 
+      if (shouldUseJsFloatFallback(code, output)) {
+        const fallback = await tryRunJsFallback(code);
+        if (fallback) {
+          return fallback;
+        }
+      }
+
       return { output, success: true };
     } catch (error: unknown) {
+      if (DECIMAL_LITERAL_PATTERN.test(code)) {
+        const fallback = await tryRunJsFallback(code);
+        if (fallback) {
+          return fallback;
+        }
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       return { output: [message], success: false };
     }
