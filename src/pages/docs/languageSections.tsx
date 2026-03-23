@@ -205,6 +205,20 @@ export const languageSections: DocSection[] = [
     print(count);
 }`}
           />
+          <DocRuleList
+            items={[
+              <>
+                <Inline>let</Inline> permits rebinding; <Inline>const</Inline>{" "}
+                locks the binding after initialization.
+              </>,
+              "Block scope is lexical, so inner bindings shadow outer ones without mutating them.",
+              <>
+                Typed non-optional bindings must be initialized when declared.
+                The main exception is <Inline>Optional&lt;T&gt;</Inline>, which
+                can begin as <Inline>None</Inline>.
+              </>,
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -269,6 +283,25 @@ export const languageSections: DocSection[] = [
             ]}
           />
           <div className="mt-5">
+            <DocRuleList
+              items={[
+                "Integer and float widths are explicit, so ABI-sensitive code can choose the right storage form.",
+                <>
+                  Comparisons, equality, and logical operators always produce{" "}
+                  <Inline>bool</Inline>.
+                </>,
+                <>
+                  <Inline>typeof(value)</Inline> returns the runtime type name,
+                  which is useful for debugging and dynamic paths.
+                </>,
+                <>
+                  <Inline>any</Inline> exists for dynamic interop and runtime
+                  probing, but it intentionally weakens compile-time checks.
+                </>,
+              ]}
+            />
+          </div>
+          <div className="mt-5">
             <DocCallout title="Boolean rules" tone="amber" icon={Shield}>
               Conditions use typed boolean expressions, comparisons, and logical
               operators.
@@ -306,27 +339,56 @@ function main() {
     print(fallback == None);
 }`}
           />
-          <DocRuleList
-            items={[
-              <>
-                Use <Inline>Optional&lt;T&gt;</Inline> for values that may be
-                absent.
-              </>,
-              <>
-                Optional declarations can start without an initializer and begin
-                as <Inline>None</Inline>.
-              </>,
-              <>
-                Non-optional typed declarations must be initialized when
-                declared.
-              </>,
-              <>
-                Member access, indexing, and <Inline>instanceof</Inline> on an
-                optional value require narrowing first unless you use{" "}
-                <Inline>?.</Inline>.
-              </>,
+          <DocTable
+            headers={["Pattern", "Meaning"]}
+            rows={[
+              [
+                <Inline>let user: Optional&lt;string&gt;;</Inline>,
+                <>
+                  Declares an optional binding that starts as{" "}
+                  <Inline>None</Inline>.
+                </>,
+              ],
+              [
+                <Inline>if (user != None)</Inline>,
+                "Narrows the value before direct member access.",
+              ],
+              [
+                <Inline>user?.length()</Inline>,
+                "Safely attempts the call and returns None when the receiver is absent.",
+              ],
             ]}
           />
+          <div className="mt-5">
+            <DocCallout title="Optional is explicit" tone="green" icon={Cpu}>
+              TejX does not treat every reference as nullable by default. If a
+              value may be absent, model that in the type with{" "}
+              <Inline>Optional&lt;T&gt;</Inline> and narrow it deliberately.
+            </DocCallout>
+          </div>
+          <div className="mt-5">
+            <DocRuleList
+              items={[
+                <>
+                  Use <Inline>Optional&lt;T&gt;</Inline> for values that may be
+                  absent.
+                </>,
+                <>
+                  Optional declarations can start without an initializer and
+                  begin as <Inline>None</Inline>.
+                </>,
+                <>
+                  Non-optional typed declarations must be initialized when
+                  declared.
+                </>,
+                <>
+                  Member access, indexing, and <Inline>instanceof</Inline> on
+                  an optional value require narrowing first unless you use{" "}
+                  <Inline>?.</Inline>.
+                </>,
+              ]}
+            />
+          </div>
         </DocBlock>
 
         <DocBlock
@@ -353,6 +415,14 @@ function main() {
     print(x, y, head, tail.length(), name, age, label, years, firstName);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Array destructuring follows positional order.",
+              "Object destructuring matches property names and supports renaming with `field: localName` syntax.",
+              "Nested patterns let you pull out deeply nested values without manual intermediate variables.",
+              "Rest patterns are useful when you want a head/tail split while preserving the remaining values.",
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -365,9 +435,11 @@ function main() {
             code={`function main() {
     let s = "  TejX Systems Programming  ";
     let x = 10;
+    let ratio: float = 5.5;
+    let cleaned = s.trim().toUpperCase();
 
     print(s.length());
-    print(s.trim().toUpperCase());
+    print(cleaned);
     print(s.substring(2, 6));
 
     x += 5;
@@ -377,8 +449,15 @@ function main() {
     let negated = !ok;
 
     print(ok, negated);
-    print(typeof(x));
+    print(typeof(x), typeof(ratio));
 }`}
+          />
+          <DocRuleList
+            items={[
+              "String helpers are available on managed strings and return new values rather than mutating in place.",
+              "Compound assignment operators such as `+=` and `*=` keep the original variable type.",
+              "Arithmetic, comparison, and logical expressions are all checked before code generation.",
+            ]}
           />
         </DocBlock>
 
@@ -416,6 +495,47 @@ function main() {
         print("cleanup");
     }
 }`}
+            playgroundCode={`function risky(flag: bool): void {
+    if (!flag) {
+        throw "bad state";
+    }
+}
+
+function reportRisk(): void {
+    try {
+        risky(false);
+    } catch (err) {
+        print(err);
+    } finally {
+        print("cleanup");
+    }
+}
+
+function main() {
+    for (let i = 0; i < 5; i++) {
+        if (i == 2) continue;
+        if (i == 4) break;
+        print("i: ", i);
+    }
+
+    let j = 0;
+    while (j < 3) {
+        print("j: ", j);
+        j++;
+    }
+
+    reportRisk();
+}`}
+          />
+          <DocRuleList
+            items={[
+              "Conditions must be typed booleans; there is no loose truthiness model.",
+              "Use `continue` and `break` inside loops exactly as in C-style control flow.",
+              <>
+                <Inline>finally</Inline> runs whether the protected block
+                succeeds or throws, so it is the right place for cleanup.
+              </>,
+            ]}
           />
         </DocBlock>
       </>
@@ -465,6 +585,26 @@ function main() {
     process(123, p, (msg: string) => print(msg));
 }`}
           />
+          <DocTable
+            headers={["Form", "Example", "Role"]}
+            rows={[
+              [
+                "Alias",
+                <Inline>type ID = int;</Inline>,
+                "Names a type without creating a runtime wrapper.",
+              ],
+              [
+                "Structural object",
+                <Inline>{"type Point = { x: int; y: int };"}</Inline>,
+                "Captures a record-like shape checked by fields.",
+              ],
+              [
+                "Function type",
+                <Inline>type Handler = (msg: string) =&gt; void;</Inline>,
+                "Describes callbacks and higher-order APIs.",
+              ],
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -474,18 +614,32 @@ function main() {
         >
           <CodeBlock
             filename="arrays_and_objects.tx"
-            code={`type User = { id: int; name: string };
+            code={`type Address = { city: string; zip: int };
+type User = { id: int; name: string; address: Address };
 
 function main() {
     let numbers: int[] = [1, 2, 3];
     let board: int[4] = [];
-    let user: User = { id: 1, name: "TejX" };
+    let user: User = {
+        id: 1,
+        name: "TejX",
+        address: { city: "Pune", zip: 411001 }
+    };
 
     numbers.push(4);
-    print(numbers[0], numbers.length());
+    print(numbers[0], numbers[3], numbers.length());
     print(board[0]);
-    print(user.name);
+    print(user.name, user.address.city);
+    print(Object.keys(user).length());
 }`}
+          />
+          <DocTable
+            headers={["Form", "Behavior"]}
+            rows={[
+              ["Dynamic array `T[]`", "Growable, supports push/pop and runtime length."],
+              ["Fixed array `T[n]`", "Fixed-size shape at the type level with indexed access."],
+              ["Structural object", "Must satisfy the declared field set and field types."],
+            ]}
           />
           <DocRuleList
             items={[
@@ -531,6 +685,13 @@ function main() {
     print(out instanceof Sub);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Constraints like `T: Base` keep generic APIs open while still requiring a minimum contract.",
+              "Explicit instantiation such as `new Box<Sub>(...)` and `processNode<Sub>(...)` is available when you want to show the concrete type.",
+              "The return type remains the concrete instantiation, so `Box<Sub>.get()` still produces `Sub`.",
+            ]}
+          />
           <div className="mt-5">
             <DocCallout
               title="Generic inference is conservative"
@@ -567,6 +728,17 @@ function main() {
     }
 }`}
           />
+          <DocTable
+            headers={["Expression", "Common runtime result"]}
+            rows={[
+              [<Inline>typeof(42)</Inline>, <Inline>int</Inline>],
+              [<Inline>typeof(5.5)</Inline>, <Inline>float</Inline>],
+              [<Inline>typeof(true)</Inline>, <Inline>bool</Inline>],
+              [<Inline>typeof("tejx")</Inline>, <Inline>string</Inline>],
+              [<Inline>typeof(None)</Inline>, <Inline>None</Inline>],
+              [<Inline>{"typeof([1, 2])"}</Inline>, <Inline>array</Inline>],
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -574,6 +746,18 @@ function main() {
           title="Inference & any"
           description="TejX infers types from initializers while keeping array targets, nullable paths, and structural detail visible in the source."
         >
+          <CodeBlock
+            filename="inference_any.tx"
+            code={`function main() {
+    let count = 10;
+    let title = "tejx";
+    let tags = ["docs", "compiler"];
+    let payload: any = { retries: 3, mode: "fast" };
+
+    print(typeof(count), typeof(title), tags.length());
+    print(typeof(payload), payload.retries, payload.mode);
+}`}
+          />
           <DocRuleList
             items={[
               <>
@@ -593,6 +777,13 @@ function main() {
               </>,
             ]}
           />
+          <div className="mt-5">
+            <DocCallout title="Prefer narrow boundaries" tone="amber" icon={Shield}>
+              Keep <Inline>any</Inline> near interop boundaries, parsing
+              layers, or highly dynamic containers. Narrow back to specific
+              shapes quickly so the compiler can help again.
+            </DocCallout>
+          </div>
         </DocBlock>
       </>
     ),
@@ -685,8 +876,8 @@ function apply<T>(value: T, op: (item: T) => T): T {
 
 function main() {
     let n = identity(10);
-    let s = identity("tejx");
-    let doubled = apply(21, (x: int) => x * 2);
+    let s = identity<string>("tejx");
+    let doubled = apply<int>(21, (x: int) => x * 2);
     print(n, s, doubled);
 }`}
           />
@@ -768,6 +959,13 @@ function main() {
     print(board[0]);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Dynamic arrays expose methods such as `push`, `pop`, `sort`, and `join` through the core runtime.",
+              "Fixed arrays keep their declared size in the type and are useful when the shape is known ahead of time.",
+              "The element type remains visible to the compiler during indexing and assignment.",
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -788,13 +986,22 @@ function main() {
         port: 8080
     };
 
-    let cluster: Server[] = [
-        primary,
-        { host: "127.0.0.2", port: 8081 }
-    ];
+    let secondary: Server = {
+        host: "127.0.0.2",
+        port: 8081
+    };
+
+    let cluster: Server[] = [primary, secondary];
 
     print(cluster[1].port);
 }`}
+          />
+          <DocRuleList
+            items={[
+              "Structural records are checked by shape, not by a hidden nominal identity.",
+              "Nested arrays and records compose naturally, which makes them useful for configuration and payload objects.",
+              "Field presence matters: missing required fields are rejected at compile time.",
+            ]}
           />
         </DocBlock>
 
@@ -1097,6 +1304,13 @@ function main() {
     print(pet instanceof Animal);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Use `super.method()` when derived behavior should extend rather than replace base behavior.",
+              "`instanceof` follows the inheritance chain, so a derived instance also matches its base class.",
+              "Structural records do not participate in `instanceof`; that operator is for nominal classes.",
+            ]}
+          />
           <div className="mt-5">
             <DocCallout title="Nominal vs structural">
               Structural object types are matched by shape. Classes are nominal
@@ -1181,6 +1395,13 @@ function main() {
         }
     }
 }`}
+          />
+          <DocRuleList
+            items={[
+              "Extend `Error` when you want both a message and structured fields.",
+              "Catch blocks can narrow with `instanceof` before reading custom members.",
+              "Simple throw values are fine for lightweight failures, but classes work better for APIs and larger programs.",
+            ]}
           />
         </DocBlock>
       </>

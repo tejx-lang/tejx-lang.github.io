@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Book, ChevronRight, Menu, X, Zap } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -8,15 +8,36 @@ const Documentation: React.FC = () => {
   const { sectionId } = useParams<{ sectionId: string }>();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const pendingSubsectionRef = useRef<string | null>(null);
 
   const currentSection =
     docSections.find((section) => section.id === sectionId) ?? docSections[0];
   const activeSection = currentSection.id;
 
+  useEffect(() => {
+    const pendingSubsection = pendingSubsectionRef.current;
+    pendingSubsectionRef.current = null;
+
+    if (pendingSubsection) {
+      const element = document.getElementById(pendingSubsection);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
+
+    window.scrollTo(0, 0);
+  }, [activeSection]);
+
   const scrollToSection = (id: string) => {
-    navigate(`/docs/${id}`);
     setIsSidebarOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (activeSection === id) {
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    navigate(`/docs/${id}`);
   };
 
   const scrollToSubsection = (
@@ -26,13 +47,8 @@ const Documentation: React.FC = () => {
     setIsSidebarOpen(false);
 
     if (activeSection !== targetSectionId) {
+      pendingSubsectionRef.current = subsectionId;
       navigate(`/docs/${targetSectionId}`);
-      setTimeout(() => {
-        const element = document.getElementById(subsectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
       return;
     }
 

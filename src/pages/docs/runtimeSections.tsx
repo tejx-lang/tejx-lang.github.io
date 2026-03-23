@@ -68,6 +68,13 @@ function main() {
     print(second);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Async functions return `Promise<T>` and can be awaited only from other async functions.",
+              "Await suspends the current TejX task without blocking the runtime event loop.",
+              "The runtime preserves managed values that survive across an await boundary with GC-safe handles.",
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -151,6 +158,15 @@ function main() {
     print(1, compute(10), compute(20));
 }`}
           />
+          <DocTable
+            headers={["API", "Typical use"]}
+            rows={[
+              [<Inline>delay(ms)</Inline>, "Pause inside async code without blocking the event loop."],
+              [<Inline>setTimeout(fn, ms)</Inline>, "Schedule one future callback."],
+              [<Inline>setInterval(fn, ms)</Inline>, "Schedule repeated callbacks until cleared."],
+              [<Inline>Promise.all([...])</Inline>, "Wait for multiple async results together."],
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -231,6 +247,18 @@ function main() {
               "Keep long CPU loops off the async event loop and move them into threads instead.",
             ]}
           />
+          <div className="mt-5">
+            <DocTable
+              headers={["Primitive", "Role"]}
+              rows={[
+                [<Inline>Thread</Inline>, "Runs a function on an OS thread."],
+                [<Inline>Mutex</Inline>, "Protects shared mutable state."],
+                [<Inline>Atomic</Inline>, "Handles lock-free numeric coordination."],
+                [<Inline>Condition</Inline>, "Lets threads wait and notify around shared state."],
+                [<Inline>SharedQueue</Inline>, "Provides a queue-like synchronization channel."],
+              ]}
+            />
+          </div>
         </DocBlock>
 
         <DocBlock
@@ -247,6 +275,13 @@ function main() {
               ["Sequential-looking I/O orchestration", "async / await"],
             ]}
           />
+          <div className="mt-5">
+            <DocCallout title="Decision rule">
+              If the work is mostly waiting on external services, stay in
+              async. If the work burns CPU or would stall the event loop, move
+              it into threads and synchronize explicitly.
+            </DocCallout>
+          </div>
         </DocBlock>
       </>
     ),
@@ -306,6 +341,15 @@ function main() {
               },
             ]}
           />
+          <div className="mt-5">
+            <DocRuleList
+              items={[
+                "Primitive immediates and managed references share the same broad runtime slot model.",
+                "Dynamic features such as `any`, arrays, objects, and generic containers all rely on these runtime encodings.",
+                "The runtime type tag is what powers operations such as `typeof`, array checks, and dynamic formatting.",
+              ]}
+            />
+          </div>
         </DocBlock>
 
         <DocBlock
@@ -380,6 +424,17 @@ function main() {
               },
             ]}
           />
+          <div className="mt-5">
+            <DocTable
+              headers={["Root source", "Why it matters"]}
+              rows={[
+                ["Active stack frame", "Prevents locals still in use from being moved out from under running code."],
+                ["Static/global root", "Keeps long-lived runtime values reachable across the whole program."],
+                ["Queued async task", "Preserves captured values until the callback resumes."],
+                ["Global handle table", "Lets background services refer back to moved managed objects safely."],
+              ]}
+            />
+          </div>
         </DocBlock>
       </>
     ),
@@ -437,6 +492,13 @@ function main() {
     }
 }`}
             />
+          <DocRuleList
+            items={[
+              "Use sync file helpers for straightforward scripts and startup/config loading.",
+              "Directory reads return string arrays, so standard array operations apply immediately.",
+              "The browser playground provides a virtual in-memory file system for std:fs examples rather than your real disk.",
+            ]}
+          />
           <div className="mt-5">
             <DocCallout title="Use named std imports">
               Use the <Inline>std:</Inline> prefix for standard-library modules
@@ -476,6 +538,13 @@ function main() {
     print("pong");
 }`}
           />
+          <div className="mt-5">
+            <DocCallout title="Two network layers" tone="green">
+              <Inline>http</Inline> covers request/response workflows, while{" "}
+              <Inline>net</Inline> gives you lower-level stream-style TCP
+              access when you need custom protocols.
+            </DocCallout>
+          </div>
         </DocBlock>
 
         <DocBlock
@@ -491,7 +560,8 @@ function main() {
     let payload = {
         name: "TejX",
         fast: true,
-        tags: ["native", "typed"]
+        tags: ["native", "typed"],
+        meta: { version: 1 }
     };
 
     let jsonStr = stringify(payload, 2);
@@ -499,6 +569,7 @@ function main() {
 
     print(jsonStr);
     print(obj.name);
+    print(obj.tags[1], obj.meta.version);
 }`}
             playgroundCode={`import { parse, stringify } from "std:json";
 
@@ -510,6 +581,13 @@ function main() {
     print(jsonStr);
     print(parsed);
 }`}
+          />
+          <DocRuleList
+            items={[
+              "Use `stringify(value, 2)` for readable pretty-printed output.",
+              "Parsed JSON is usually handled as `any` first, then narrowed as your program inspects the shape.",
+              "Object, array, string, numeric, boolean, and null-like values are all supported by the runtime JSON helpers.",
+            ]}
           />
         </DocBlock>
 
@@ -549,6 +627,13 @@ function main() {
     print(d);
 }`}
           />
+          <DocRuleList
+            items={[
+              "Use `sleep` only when blocking the current thread is acceptable.",
+              "Prefer `delay` in async code so the event loop can keep progressing.",
+              "Timer IDs from `setTimeout` and `setInterval` can be canceled explicitly when work is no longer needed.",
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -571,6 +656,13 @@ function main() {
     print(pow(2.0, 10.0));
     print(round(random() * 10.0));
 }`}
+          />
+          <DocTable
+            headers={["Module", "Examples"]}
+            rows={[
+              [<Inline>std:system</Inline>, "args(), argv(), env(key), getEnv(key), exit(code)"],
+              [<Inline>std:math</Inline>, "abs, min, max, sin, cos, sqrt, floor, ceil, round, pow, random"],
+            ]}
           />
           <DocRuleList
             items={[

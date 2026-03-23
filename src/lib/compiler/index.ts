@@ -52,6 +52,12 @@ const STD_FS_NAMED_IMPORT_PATTERN =
   /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:fs["'];?[ \t]*$/gm;
 const STD_FS_NAMESPACE_IMPORT_PATTERN =
   /^([ \t]*)import\s+std:fs\s*;?[ \t]*$/gm;
+const STD_SYSTEM_NAMED_IMPORT_PATTERN =
+  /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:system["'];?[ \t]*$/gm;
+const STD_MATH_NAMED_IMPORT_PATTERN =
+  /^([ \t]*)import\s*\{([^}]*)\}\s*from\s*["']std:math["'];?[ \t]*$/gm;
+const JS_FALLBACK_HELPER_IMPORT_PATTERN =
+  /\bfrom\s*["']std:(?:json|system|math)["']/;
 
 const BROWSER_STD_JSON_SHIM = String.raw`// Browser playground shim for named std:json imports.
 function __tejx_browser_json_escape_string(str: string): string {
@@ -449,13 +455,24 @@ const STD_FS_NAMESPACE_MEMBERS = {
 } as const;
 
 const DECIMAL_LITERAL_PATTERN = /\b\d+\.\d+(?:[eE][+-]?\d+)?\b/;
+const OPTIONAL_CHAINING_PATTERN = /\?\./;
+const TYPE_ALIAS_PATTERN = /^\s*type\s+[A-Za-z_]\w*/m;
+const TYPED_ARROW_FUNCTION_PATTERN = /\([^)]*:\s*[A-Za-z_][\w<>, ?|:[\]]*[^)]*\)\s*=>/;
+const GENERIC_DECLARATION_PATTERN =
+  /\b(?:class|function)\s+[A-Za-z_]\w*\s*<[^>\n]+>/;
+const GENERIC_INSTANTIATION_PATTERN = /\b[A-Za-z_]\w*\s*<[^>\n]+>\s*\(/;
+const INSTANCEOF_PATTERN = /\binstanceof\b/;
+const EXCEPTION_CONTROL_PATTERN = /\b(?:try|catch|finally|throw)\b/;
 const SUSPICIOUS_FLOAT_OUTPUT_PATTERN = /\b-?\d{16,}\b/;
 
 type FallbackFsEntry = { kind: "dir" } | { kind: "file"; content: string };
 type JsFallbackHelpers = {
   len: (value: unknown) => number;
   print: (...args: unknown[]) => void;
+  typeOf: (value: unknown) => string;
   stdFs: ReturnType<typeof createJsFallbackStdFs>;
+  stdSystem: ReturnType<typeof createJsFallbackStdSystem>;
+  stdMath: ReturnType<typeof createJsFallbackStdMath>;
   stdJson: {
     parse: (input: string) => unknown;
     stringify: (value: unknown, space?: unknown) => string;
@@ -650,6 +667,38 @@ function formatJsFallbackNumber(value: number) {
   return Number.isInteger(value) ? value.toFixed(0) : `${value}`;
 }
 
+function getJsFallbackTypeName(value: unknown) {
+  if (value === null || value === undefined) {
+    return "None";
+  }
+
+  if (typeof value === "string") {
+    return "string";
+  }
+
+  if (typeof value === "boolean") {
+    return "bool";
+  }
+
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? "int" : "float";
+  }
+
+  if (typeof value === "bigint") {
+    return "int";
+  }
+
+  if (typeof value === "function") {
+    return "function";
+  }
+
+  if (Array.isArray(value)) {
+    return "array";
+  }
+
+  return "object";
+}
+
 function formatJsFallbackValue(
   value: unknown,
   options: { quoteStrings?: boolean; seen?: WeakSet<object> } = {},
@@ -801,31 +850,238 @@ function createJsFallbackStdFs() {
   };
 }
 
+function createJsFallbackStdSystem() {
+  const argv = [] as string[];
+
+  return {
+    args() {
+      return [...argv];
+    },
+    argv() {
+      return [...argv];
+    },
+    env(key: string) {
+      void key;
+      return null;
+    },
+    getEnv(key: string) {
+      void key;
+      return null;
+    },
+    exit(code = 0) {
+      throw new Error(`Process exited with code ${code}`);
+    },
+  };
+}
+
+function createJsFallbackStdMath() {
+  return {
+    abs(value: number) {
+      return Math.abs(value);
+    },
+    min(a: number, b: number) {
+      return Math.min(a, b);
+    },
+    max(a: number, b: number) {
+      return Math.max(a, b);
+    },
+    sin(value: number) {
+      return Math.sin(value);
+    },
+    cos(value: number) {
+      return Math.cos(value);
+    },
+    sqrt(value: number) {
+      return Math.sqrt(value);
+    },
+    floor(value: number) {
+      return Math.floor(value);
+    },
+    ceil(value: number) {
+      return Math.ceil(value);
+    },
+    round(value: number) {
+      return Math.round(value);
+    },
+    pow(base: number, exponent: number) {
+      return Math.pow(base, exponent);
+    },
+    random() {
+      return Math.random();
+    },
+  };
+}
+
+function splitJsFallbackParams(params: string) {
+  const parts: string[] = [];
+  let current = "";
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let angleDepth = 0;
+
+  for (const ch of params) {
+    if (ch === "," && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0 && angleDepth === 0) {
+      parts.push(current);
+      current = "";
+      continue;
+    }
+
+    current += ch;
+
+    if (ch === "(") parenDepth += 1;
+    else if (ch === ")" && parenDepth > 0) parenDepth -= 1;
+    else if (ch === "[") bracketDepth += 1;
+    else if (ch === "]" && bracketDepth > 0) bracketDepth -= 1;
+    else if (ch === "{") braceDepth += 1;
+    else if (ch === "}" && braceDepth > 0) braceDepth -= 1;
+    else if (ch === "<") angleDepth += 1;
+    else if (ch === ">" && angleDepth > 0) angleDepth -= 1;
+  }
+
+  if (current) {
+    parts.push(current);
+  }
+
+  return parts;
+}
+
+function findTopLevelParamChar(param: string, target: string) {
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let angleDepth = 0;
+
+  for (let i = 0; i < param.length; i += 1) {
+    const ch = param[i];
+
+    if (
+      ch === target &&
+      parenDepth === 0 &&
+      bracketDepth === 0 &&
+      braceDepth === 0 &&
+      angleDepth === 0
+    ) {
+      return i;
+    }
+
+    if (ch === "(") parenDepth += 1;
+    else if (ch === ")" && parenDepth > 0) parenDepth -= 1;
+    else if (ch === "[") bracketDepth += 1;
+    else if (ch === "]" && bracketDepth > 0) bracketDepth -= 1;
+    else if (ch === "{") braceDepth += 1;
+    else if (ch === "}" && braceDepth > 0) braceDepth -= 1;
+    else if (ch === "<") angleDepth += 1;
+    else if (ch === ">" && angleDepth > 0) angleDepth -= 1;
+  }
+
+  return -1;
+}
+
+function findTopLevelParamAssignment(param: string) {
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let braceDepth = 0;
+  let angleDepth = 0;
+
+  for (let i = 0; i < param.length; i += 1) {
+    const ch = param[i];
+
+    if (
+      ch === "=" &&
+      parenDepth === 0 &&
+      bracketDepth === 0 &&
+      braceDepth === 0 &&
+      angleDepth === 0 &&
+      param[i - 1] !== "!" &&
+      param[i - 1] !== "<" &&
+      param[i - 1] !== ">" &&
+      param[i - 1] !== "=" &&
+      param[i + 1] !== "=" &&
+      param[i + 1] !== ">"
+    ) {
+      return i;
+    }
+
+    if (ch === "(") parenDepth += 1;
+    else if (ch === ")" && parenDepth > 0) parenDepth -= 1;
+    else if (ch === "[") bracketDepth += 1;
+    else if (ch === "]" && bracketDepth > 0) bracketDepth -= 1;
+    else if (ch === "{") braceDepth += 1;
+    else if (ch === "}" && braceDepth > 0) braceDepth -= 1;
+    else if (ch === "<") angleDepth += 1;
+    else if (ch === ">" && angleDepth > 0) angleDepth -= 1;
+  }
+
+  return -1;
+}
+
 function stripJsFallbackParamTypes(params: string) {
   if (!params.trim()) {
     return params;
   }
 
-  return params
-    .split(",")
-    .map((param) =>
-      param
-        .replace(
-          /^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*\s*=\s*(.+)\s*$/,
-          "$1 = $2",
-        )
-        .replace(
-          /^\s*([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*\s*$/,
-          "$1",
-        ),
-    )
+  return splitJsFallbackParams(params)
+    .map((param) => {
+      const trimmed = param.trim();
+      if (!trimmed) {
+        return trimmed;
+      }
+
+      const colonIndex = findTopLevelParamChar(trimmed, ":");
+      if (colonIndex === -1) {
+        return trimmed;
+      }
+
+      const equalsIndex = findTopLevelParamAssignment(trimmed);
+      const name = trimmed.slice(0, colonIndex).trim();
+
+      if (equalsIndex !== -1 && equalsIndex > colonIndex) {
+        return `${name} = ${trimmed.slice(equalsIndex + 1).trim()}`;
+      }
+
+      return name;
+    })
     .join(", ");
+}
+
+function stripJsFallbackTypeAliases(source: string) {
+  return source.replace(
+    /^\s*type\s+[A-Za-z_]\w*(?:<[^>\n]+>)?\s*=\s*(?:\{[\s\S]*?\n\};|[^\n]+;)\s*$/gm,
+    "",
+  );
+}
+
+function stripJsFallbackClassFieldTypes(source: string) {
+  return source.replace(
+    /^(\s*)((?:(?:public|private|protected)\s+)*)(static\s+)?([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(\s*=\s*[^;]+)?\s*;\s*$/gm,
+    (
+      _match: string,
+      indent: string,
+      _visibility: string,
+      staticKeyword: string | undefined,
+      name: string,
+      initializer: string | undefined,
+    ) =>
+      `${indent}${staticKeyword ?? ""}${name}${initializer ?? ""};`,
+  );
+}
+
+function normalizeJsFallbackMethodModifiers(modifiers: string) {
+  const kept = modifiers
+    .trim()
+    .split(/\s+/)
+    .filter((modifier) => modifier === "static" || modifier === "async");
+
+  return kept.length > 0 ? `${kept.join(" ")} ` : "";
 }
 
 function transpileJsFallbackSource(source: string) {
   let unsupportedImport = false;
 
-  let rewritten = source.replace(
+  let rewritten = stripJsFallbackClassFieldTypes(
+    stripJsFallbackTypeAliases(source),
+  ).replace(
     STD_JSON_IMPORT_PATTERN,
     (_match: string, indent: string, specifierBlock: string) => {
       const members = buildJsImportDestructuring(specifierBlock);
@@ -855,21 +1111,90 @@ function transpileJsFallbackSource(source: string) {
     },
   );
 
+  rewritten = rewritten.replace(
+    STD_SYSTEM_NAMED_IMPORT_PATTERN,
+    (_match: string, indent: string, specifierBlock: string) => {
+      const members = buildJsImportDestructuring(specifierBlock);
+      if (!members) {
+        unsupportedImport = true;
+        return _match;
+      }
+
+      return `${indent}const { ${members} } = helpers.stdSystem;`;
+    },
+  );
+
+  rewritten = rewritten.replace(
+    STD_MATH_NAMED_IMPORT_PATTERN,
+    (_match: string, indent: string, specifierBlock: string) => {
+      const members = buildJsImportDestructuring(specifierBlock);
+      if (!members) {
+        unsupportedImport = true;
+        return _match;
+      }
+
+      return `${indent}const { ${members} } = helpers.stdMath;`;
+    },
+  );
+
   if (unsupportedImport) {
     return null;
   }
 
   return rewritten
     .replace(
-      /function\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/g,
+      /class\s+([A-Za-z_]\w*)\s*<[^>\n]+>/g,
+      "class $1",
+    )
+    .replace(
+      /^([ \t]*)((?:(?:public|private|protected|static|async)\s+)*)constructor\s*\(([\s\S]*?)\)\s*\{/gm,
+      (
+        _match: string,
+        indent: string,
+        modifiers: string,
+        params: string,
+      ) =>
+        `${indent}${normalizeJsFallbackMethodModifiers(modifiers)}constructor(${stripJsFallbackParamTypes(
+          params,
+        )}) {`,
+    )
+    .replace(
+      /^([ \t]*)((?:(?:public|private|protected|static|async)\s+)*)([A-Za-z_]\w*)\s*\(([\s\S]*?)\)\s*(?::\s*[A-Za-z_][\w<>, ?|:[\]]*)?\s*\{/gm,
+      (
+        _match: string,
+        indent: string,
+        modifiers: string,
+        name: string,
+        params: string,
+      ) =>
+        `${indent}${normalizeJsFallbackMethodModifiers(modifiers)}${name}(${stripJsFallbackParamTypes(
+          params,
+        )}) {`,
+    )
+    .replace(
+      /function\s+([A-Za-z_]\w*)(?:\s*<[^>\n]+>)?\s*\(([\s\S]*?)\)(?=\s*(?::\s*[A-Za-z_][\w<>, ?|:[\]]*)?\s*\{)/g,
       (_match: string, name: string, params: string) =>
         `function ${name}(${stripJsFallbackParamTypes(params)})`,
     )
     .replace(/\)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(\s*\{)/g, ")$1")
+    .replace(/\b([A-Za-z_]\w*)\s*<[^>\n]+>(?=\s*\()/g, "$1")
     .replace(
       /\b(let|const|var)\s+([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(?=\s*=)/g,
       "$1 $2",
     )
+    .replace(
+      /\b(let|var)\s+([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*(?=\s*;)/g,
+      "$1 $2",
+    )
+    .replace(
+      /\(((?:\s*[A-Za-z_]\w*\s*:\s*[A-Za-z_][\w<>, ?|:[\]]*\s*,?)*)\)\s*=>/g,
+      (_match: string, params: string) =>
+        `(${stripJsFallbackParamTypes(params)}) =>`,
+    )
+    .replace(/\?\.length\(\)/g, "?.length")
+    .replace(/\.length\(\)/g, ".length")
+    .replace(/\.getMessage\(\)/g, ".message")
+    .replace(/\btypeof\s*\(/g, "__tejx_typeof(")
     .replace(/\s+as\s+[A-Za-z_][\w<>, ?|:[\]]*/g, "")
     .replace(/\bNone\b/g, "null");
 }
@@ -881,6 +1206,31 @@ function shouldUseJsFloatFallback(source: string, output: string[]) {
   );
 }
 
+function shouldAttemptJsFallback(source: string) {
+  return (
+    DECIMAL_LITERAL_PATTERN.test(source) ||
+    OPTIONAL_CHAINING_PATTERN.test(source) ||
+    TYPE_ALIAS_PATTERN.test(source) ||
+    TYPED_ARROW_FUNCTION_PATTERN.test(source) ||
+    GENERIC_DECLARATION_PATTERN.test(source) ||
+    GENERIC_INSTANTIATION_PATTERN.test(source) ||
+    INSTANCEOF_PATTERN.test(source) ||
+    EXCEPTION_CONTROL_PATTERN.test(source) ||
+    JS_FALLBACK_HELPER_IMPORT_PATTERN.test(source)
+  );
+}
+
+function shouldPreferJsFallback(source: string) {
+  return (
+    DECIMAL_LITERAL_PATTERN.test(source) ||
+    TYPED_ARROW_FUNCTION_PATTERN.test(source) ||
+    GENERIC_DECLARATION_PATTERN.test(source) ||
+    GENERIC_INSTANTIATION_PATTERN.test(source) ||
+    INSTANCEOF_PATTERN.test(source) ||
+    EXCEPTION_CONTROL_PATTERN.test(source)
+  );
+}
+
 async function tryRunJsFallback(source: string): Promise<CompilerResult | null> {
   const transpiled = transpileJsFallbackSource(source);
   if (!transpiled) {
@@ -889,6 +1239,8 @@ async function tryRunJsFallback(source: string): Promise<CompilerResult | null> 
 
   const output: string[] = [];
   const stdFs = createJsFallbackStdFs();
+  const stdSystem = createJsFallbackStdSystem();
+  const stdMath = createJsFallbackStdMath();
   const helpers: JsFallbackHelpers = {
     len(value: unknown) {
       if (typeof value === "string" || Array.isArray(value)) {
@@ -909,7 +1261,12 @@ async function tryRunJsFallback(source: string): Promise<CompilerResult | null> 
           .join(" "),
       );
     },
+    typeOf(value: unknown) {
+      return getJsFallbackTypeName(value);
+    },
     stdFs,
+    stdSystem,
+    stdMath,
     stdJson: {
       parse(input: string) {
         return JSON.parse(input) as unknown;
@@ -938,6 +1295,7 @@ async function tryRunJsFallback(source: string): Promise<CompilerResult | null> 
       `"use strict";
 const print = (...args) => helpers.print(...args);
 const len = (value) => helpers.len(value);
+const __tejx_typeof = (value) => helpers.typeOf(value);
 ${transpiled}
 if (typeof main !== "function") {
   throw new Error("Program must define a main() function.");
@@ -989,6 +1347,13 @@ export class TejXCompiler {
     }
 
     const filename = "playground.tx";
+    if (shouldPreferJsFallback(code)) {
+      const fallback = await tryRunJsFallback(code);
+      if (fallback) {
+        return fallback;
+      }
+    }
+
     const source = transformBrowserPlaygroundSource(code);
     const report = this.compiler.compileToWatReport(
       source,
@@ -997,7 +1362,7 @@ export class TejXCompiler {
     ) as CompileReport;
 
     if (!report.ok) {
-      if (DECIMAL_LITERAL_PATTERN.test(code)) {
+      if (shouldAttemptJsFallback(code)) {
         const fallback = await tryRunJsFallback(code);
         if (fallback) {
           return fallback;
@@ -1026,6 +1391,13 @@ export class TejXCompiler {
       host.runMain();
 
       if (host.unsupportedCalls.size) {
+        if (shouldAttemptJsFallback(code)) {
+          const fallback = await tryRunJsFallback(code);
+          if (fallback) {
+            return fallback;
+          }
+        }
+
         output.push(
           `Unsupported runtime imports hit: ${[...host.unsupportedCalls].join(", ")}`,
         );
@@ -1040,7 +1412,7 @@ export class TejXCompiler {
 
       return { output, success: true };
     } catch (error: unknown) {
-      if (DECIMAL_LITERAL_PATTERN.test(code)) {
+      if (shouldAttemptJsFallback(code)) {
         const fallback = await tryRunJsFallback(code);
         if (fallback) {
           return fallback;
