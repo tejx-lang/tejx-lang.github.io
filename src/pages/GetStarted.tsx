@@ -73,10 +73,54 @@ const GetStarted: React.FC = () => {
                 command="curl -fsSL https://tejx-lang.github.io/install.sh | sh"
               />
             </div>
-
           </motion.div>
 
-          {/* Step 2: Setup Project */}
+          {/* Step 2: Editor Extension */}
+          <motion.div
+            id="extension"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="p-6 md:p-8 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-6"
+          >
+            <div>
+              <h3 className="text-2xl font-bold mb-3 flex items-center gap-3">
+                <span className="text-blue-400/50">02</span>
+                TejX Language Suite
+              </h3>
+              <p className="text-gray-400 text-sm max-w-2xl">
+                Get the best development experience with our official VS Code
+                extension. Includes syntax highlighting, snippets, and a
+                powerful code formatter.
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Search{" "}
+                <code className="text-blue-300 font-bold">
+                  "TejX Language Suite"
+                </code>{" "}
+                in your editor's extensions view to install directly or click
+                the button below.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4 items-center">
+              <a
+                href="vscode:extension/tejx-lang.tejx-language-suite"
+                className="px-6 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all text-sm font-medium flex items-center gap-2"
+              >
+                Install for VS Code
+              </a>
+              <a
+                href="https://open-vsx.org/extension/tejx-lang/tejx-language-suite"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-all text-sm font-medium"
+              >
+                Open VSX Registry
+              </a>
+            </div>
+          </motion.div>
+
+          {/* Step 3: Setup Project */}
           <motion.div
             id="init"
             initial={{ opacity: 0, y: 10 }}
@@ -86,7 +130,7 @@ const GetStarted: React.FC = () => {
           >
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-purple-500/50">02</span>
+                <span className="text-purple-500/50">03</span>
                 <h4 className="text-2xl font-bold">Setup Project</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
@@ -103,7 +147,7 @@ const GetStarted: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Step 3: Write Example */}
+          {/* Step 4: Write Example */}
           <motion.div
             id="example"
             initial={{ opacity: 0, y: 10 }}
@@ -113,7 +157,7 @@ const GetStarted: React.FC = () => {
           >
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-orange-500/50">03</span>
+                <span className="text-orange-500/50">04</span>
                 <h4 className="text-2xl font-bold">Create an Example</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
@@ -140,7 +184,7 @@ function main() {
             </div>
           </motion.div>
 
-          {/* Step 4: Run */}
+          {/* Step 5: Run */}
           <motion.div
             id="run"
             initial={{ opacity: 0, y: 10 }}
@@ -150,7 +194,7 @@ function main() {
           >
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-blue-500/50">04</span>
+                <span className="text-blue-500/50">05</span>
                 <h4 className="text-2xl font-bold">Build & Run</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
@@ -166,7 +210,7 @@ function main() {
             </div>
           </motion.div>
 
-          {/* Step 5: Uninstall */}
+          {/* Step 6: Uninstall */}
           <motion.div
             id="uninstall"
             initial={{ opacity: 0, y: 10 }}
@@ -176,13 +220,12 @@ function main() {
           >
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-red-500/50">05</span>
+                <span className="text-red-500/50">06</span>
                 <h4 className="text-2xl font-bold">Uninstall</h4>
               </div>
               <p className="text-gray-400 text-sm max-w-2xl">
-                Remove the TejX toolchain from{" "}
-                <code className="text-red-300">~/.tejx</code> when you no
-                longer need it.
+                Remove the TejX toolchain and PATH configuration from your
+                system. The editor extension will remain installed.
               </p>
             </div>
             <div className="w-full max-w-xl">
@@ -192,9 +235,9 @@ function main() {
               />
             </div>
             <p className="text-gray-500 text-sm max-w-2xl">
-              If you added <code className="text-purple-300">~/.tejx/bin</code>{" "}
-              to your shell <code className="text-purple-300">PATH</code>{" "}
-              manually, remove that line from your shell config too.
+              The uninstaller will automatically clean up the{" "}
+              <code className="text-purple-300">PATH</code> from your shell
+              configuration files.
             </p>
           </motion.div>
         </div>

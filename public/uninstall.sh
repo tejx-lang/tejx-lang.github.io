@@ -40,7 +40,17 @@ main() {
         error "Failed to completely remove the TejX toolchain."
     fi
 
+    info "Removing from PATH..."
+    for config in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+        if [ -f "$config" ]; then
+            # Remove the lines added by install.sh
+            sed -i '' '/# TejX Toolchain/d' "$config" 2>/dev/null || sed -i '/# TejX Toolchain/d' "$config"
+            sed -i '' '/\.tejx\/bin/d' "$config" 2>/dev/null || sed -i '/\.tejx\/bin/d' "$config"
+        fi
+    done
+
     success "TejX toolchain has been successfully removed."
+    warn "Please restart your terminal to apply PATH changes."
     echo ""
 }
 

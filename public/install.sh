@@ -180,15 +180,27 @@ update_path() {
     # Create file if it doesn't exist
     touch "$shell_config"
 
-    if ! grep -q ".tejx/bin" "$shell_config"; then
-        echo "" >> "$shell_config"
-        echo "# TejX Toolchain" >> "$shell_config"
-        echo "export PATH=\"\$HOME/.tejx/bin:\$PATH\"" >> "$shell_config"
-        printf "${CYAN}➜${RESET} Added TejX to PATH in ${BOLD}%s${RESET}\n" "$shell_config"
-        printf "${CYAN}➜${RESET} Please restart your terminal or run: ${BOLD}source %s${RESET}\n" "$shell_config"
-    else
+    # Check current session PATH first
+    case ":$PATH:" in
+        *":$BIN_DIR:"*|*":\$HOME/.tejx/bin:"*) 
+            printf "${CYAN}➜${RESET} TejX is already in your session PATH\n"
+            return 0
+            ;;
+    esac
+
+    # Check config file
+    if [ -f "$shell_config" ] && grep -q "\.tejx/bin" "$shell_config"; then
         printf "${CYAN}➜${RESET} TejX is already in PATH in ${BOLD}%s${RESET}\n" "$shell_config"
+        return 0
     fi
+
+    # Add to config
+    touch "$shell_config"
+    echo "" >> "$shell_config"
+    echo "# TejX Toolchain" >> "$shell_config"
+    echo "export PATH=\"\$HOME/.tejx/bin:\$PATH\"" >> "$shell_config"
+    printf "${CYAN}➜${RESET} Added TejX to PATH in ${BOLD}%s${RESET}\n" "$shell_config"
+    printf "${CYAN}➜${RESET} Please restart your terminal or run: ${BOLD}source %s${RESET}\n" "$shell_config"
 }
 
 # ── Verify Installation ──
