@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   NAME: "TejX",
-  VERSION: "1.0.4",
+  VERSION: "1.0.5",
   GITHUB_URL: "https://github.com/tejx-lang/tejx",
   COMPILER_WASM_URL: "/tejxc_wasm.wasm",
   DESCRIPTION:
