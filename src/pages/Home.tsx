@@ -36,7 +36,7 @@ const Home: React.FC = () => {
 
             <p className="text-xl text-gray-400 mb-8 leading-relaxed max-w-lg">
               {APP_CONFIG.DESCRIPTION} Write programs with static typing,
-              ahead-of-time compilation, async workflows, native threads, and a
+              ahead-of-time compilation, true parallel execution, an M:N coroutine scheduler, and a
               moving garbage-collected runtime.
             </p>
 
@@ -91,7 +91,7 @@ const Home: React.FC = () => {
               { label: "Runtime", value: "Moving GC" },
               { label: "Backend", value: "LLVM 18" },
               { label: "Safety", value: "Explicit Roots" },
-              { label: "Concurrency", value: "Async + Threads" },
+              { label: "Concurrency", value: "Virtual Threads" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <div className="text-2xl md:text-3xl font-black mb-1">
@@ -139,7 +139,7 @@ const Home: React.FC = () => {
               color: "text-green-400",
               bg: "bg-green-500/10 border-green-500/20",
               title: "Concurrency",
-              desc: "TejX includes async workflows for event-loop tasks and native OS threads for parallel work.",
+              desc: "TejX features true parallelism using an M:N work-stealing scheduler with lightweight virtual threads.",
             },
             {
               icon: Code,

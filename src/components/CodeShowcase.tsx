@@ -42,11 +42,11 @@ function main() {
                   <span className="whitespace-pre">
                     {(() => {
                       const regex =
-                        /(\b(?:function|func|return|if|else|let|const|int|string|bool|void|main|add|print)\b|"(?:[^"\\]|\\.)*"|\/\/.*)/g;
+                        /(\b(?:function|return|if|else|let|const|int|string|bool|void|main|add|print)\b|"(?:[^"\\]|\\.)*"|\/\/.*)/g;
                       const parts = line.split(regex);
                       return parts.map((part, index) => {
                         if (
-                          /^(function|func|return|if|else|let|const)$/.test(
+                          /^(function|return|if|else|let|const)$/.test(
                             part,
                           )
                         ) {

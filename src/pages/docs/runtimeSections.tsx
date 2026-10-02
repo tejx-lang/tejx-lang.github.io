@@ -14,157 +14,104 @@ import type { DocSection } from "./types";
 export const runtimeSections: DocSection[] = [
   {
     id: "async",
-    title: "Async & Concurrency",
+    title: "Concurrency & Parallelism",
     icon: Activity,
     subsections: [
-      { id: "async-await", title: "Async / Await" },
-      { id: "event-loop", title: "Event Loop Model" },
-      { id: "timers-promises", title: "Timers & Promise.all" },
-      { id: "threads", title: "Native Threads" },
+      { id: "virtual-threads", title: "Virtual Threads & Parallelism" },
+      { id: "event-loop", title: "Event Loop & Timers" },
+      { id: "threads", title: "Native OS Threads" },
       { id: "choosing-model", title: "Which Model to Use" },
     ],
     content: (
       <>
         <DocHeader
-          title="Async & Concurrency"
+          title="Concurrency & Parallelism"
           description={
             <>
-              TejX includes async/await for event-loop workflows and{" "}
-              <Inline>std:thread</Inline> for native threaded execution.
+              TejX uses a true parallel Promise API powered by an M:N work-stealing scheduler for lightweight concurrency, alongside native <Inline>std:thread</Inline>s for heavy workloads.
             </>
           }
         />
 
         <DocBlock
-          id="async-await"
-          title="Async / Await"
-          description="Async functions return Promise<T> and support timers, networking, file I/O, and non-blocking workflows."
+          id="virtual-threads"
+          title="Virtual Threads & Parallelism"
+          description="TejX provides an M:N coroutine scheduler with lightweight virtual threads. Promises execute concurrently across all available CPU cores."
         >
           <CodeBlock
-            filename="async.tx"
-            code={`import { delay } from "std:time";
+            filename="promises.tx"
+            code={`import { sleep } from "std:time";
 
-async function fetchData(id: int): Promise<string> {
-    await delay(100);
-    return "Data for ID: " + id;
+function heavyTask(id: int): int {
+    sleep(500);
+    return id * 10;
 }
 
-async function main(): Promise<void> {
-    let first = await fetchData(1);
-    let second = await fetchData(2);
+function main(): void {
+    // Spawns a lightweight virtual thread
+    let p = Promise.spawn(() => heavyTask(1));
+    
+    // Runs multiple tasks in true parallel
+    let results = Promise.all([
+        () => heavyTask(2),
+        () => heavyTask(3)
+    ]);
 
-    print(first);
-    print(second);
+    print(results[0], results[1]);
 }`}
-            playgroundCode={`function fetchData(id: int): string {
-    return "Data for ID: " + id;
+            playgroundCode={`function heavyTask(id: int): int {
+    return id * 10;
 }
 
 function main() {
-    let first = fetchData(1);
-    let second = fetchData(2);
-
-    print(first);
-    print(second);
+    print(heavyTask(2), heavyTask(3));
 }`}
           />
           <DocRuleList
             items={[
-              "Async functions return `Promise<T>` and can be awaited only from other async functions.",
-              "Await suspends the current TejX task without blocking the runtime event loop.",
-              "The runtime preserves managed values that survive across an await boundary with GC-safe handles.",
+              "Promise.spawn() executes closures on a lightweight background virtual thread (~32KB stack).",
+              "Promise.all() and Promise.settled() distribute tasks across all CPU cores for true parallelism.",
+              "The runtime's M:N scheduler handles yielding and balancing tasks automatically."
             ]}
           />
         </DocBlock>
 
         <DocBlock
           id="event-loop"
-          title="Event Loop Model"
-          description="Async user callbacks resume on the TejX event loop even when background work is driven by runtime services."
-        >
-          <DocFeatureGrid
-            items={[
-              {
-                title: "Task queue",
-                description:
-                  "Pending TejX callbacks are stored in a runtime queue and executed on the event-loop thread.",
-                tone: "purple",
-              },
-              {
-                title: "Async operation tracking",
-                description:
-                  "The runtime counts in-flight async work so it knows when the loop can shut down cleanly.",
-                tone: "blue",
-              },
-              {
-                title: "Tokio bridge",
-                description:
-                  "Background async polling is delegated to a Tokio runtime, then results are funneled back into TejX tasks.",
-                tone: "green",
-              },
-              {
-                title: "GC-safe handles",
-                description:
-                  "Managed values that outlive a task turn are protected through global handles so moving GC can update them safely.",
-                tone: "amber",
-              },
-            ]}
-          />
-        </DocBlock>
-
-        <DocBlock
-          id="timers-promises"
-          title="Timers & Promise.all"
-          description="The time module provides timer APIs, and Promise.all is available for waiting on multiple promises together."
+          title="Event Loop & Timers"
+          description="Timers are managed by a dedicated lock-free Min-Heap event loop thread."
         >
           <CodeBlock
-            filename="timers_promises.tx"
+            filename="timers.tx"
             code={`import {
-    delay,
     setTimeout,
     setInterval,
     clearInterval
 } from "std:time";
 
-async function compute(x: int): Promise<int> {
-    await delay(10);
-    return x * 2;
-}
-
-async function main(): Promise<void> {
+function main(): void {
     let timerId = setTimeout(() => print("timeout fired"), 5);
+    
     let ticks = 0;
     let intervalId = setInterval(() => {
         ticks++;
         print("tick", ticks);
+        if (ticks > 2) clearInterval(intervalId);
     }, 5);
-
-    let results = await Promise.all([
-        compute(10),
-        compute(20)
-    ]);
-
-    clearInterval(intervalId);
-    print(timerId, results[0], results[1]);
 }`}
-            playgroundCode={`function compute(x: int): int {
-    return x * 2;
-}
-
-function main() {
+            playgroundCode={`function main() {
     print("timeout fired");
     print("tick", 1);
     print("tick", 2);
-    print(1, compute(10), compute(20));
 }`}
           />
           <DocTable
             headers={["API", "Typical use"]}
             rows={[
-              [<Inline>delay(ms)</Inline>, "Pause inside async code without blocking the event loop."],
+              [<Inline>Promise.spawn(fn)</Inline>, "Dispatch a background closure."],
               [<Inline>setTimeout(fn, ms)</Inline>, "Schedule one future callback."],
               [<Inline>setInterval(fn, ms)</Inline>, "Schedule repeated callbacks until cleared."],
-              [<Inline>Promise.all([...])</Inline>, "Wait for multiple async results together."],
+              [<Inline>Promise.all([...])</Inline>, "Wait for multiple parallel results."],
             ]}
           />
         </DocBlock>
@@ -172,17 +119,22 @@ function main() {
         <DocBlock
           id="threads"
           title="Native Threads"
-          description="The std:thread module provides threads and synchronization primitives for parallel work."
+          description="The std:thread module provides OS threads, thread-per-connection models for network servers (std:http), and synchronization primitives for parallel work."
         >
           <CodeBlock
             filename="threads.tx"
             code={`import {
-    Thread,
     Mutex,
     Atomic,
     Condition,
-    SharedQueue
+    SharedQueue,
+    spawn
 } from "std:thread";
+
+// Quick thread-per-connection scaling via spawn()
+spawn(() => {
+    print("Background worker on a dedicated OS thread");
+});
 
 function producer(args: any[]): void {
     let q = args[0] as SharedQueue<int>;
@@ -244,7 +196,7 @@ function main() {
             items={[
               "Thread, Atomic, Mutex, Condition, and SharedQueue are the main synchronization primitives.",
               "Protect shared mutable state explicitly with Mutex, Atomic, Condition, or SharedQueue.",
-              "Keep long CPU loops off the async event loop and move them into threads instead.",
+              "Use virtual threads (Promise.spawn) for lightweight concurrent tasks; use native OS threads when explicit synchronization is required.",
             ]}
           />
           <div className="mt-5">
@@ -264,22 +216,19 @@ function main() {
         <DocBlock
           id="choosing-model"
           title="Which Model to Use"
-          description="Async and threads cover different execution patterns inside the language runtime."
+          description="Virtual threads and native OS threads cover different execution patterns inside the language runtime."
         >
           <DocTable
             headers={["Use case", "Preferred model"]}
             rows={[
-              ["Timers, sockets, HTTP, non-blocking workflows", "async / await"],
-              ["True CPU parallelism across cores", "std:thread"],
-              ["Code that must not block the event loop", "std:thread"],
-              ["Sequential-looking I/O orchestration", "async / await"],
+              ["Lightweight parallel tasks and network I/O", "Promises (Promise.spawn)"],
+              ["True CPU parallelism across cores", "Promises (Promise.spawn)"],
+              ["Low-level OS synchronization", "Native OS Threads (std:thread)"],
             ]}
           />
           <div className="mt-5">
             <DocCallout title="Decision rule">
-              If the work is mostly waiting on external services, stay in
-              async. If the work burns CPU or would stall the event loop, move
-              it into threads and synchronize explicitly.
+              Virtual threads via Promises are extremely cheap and scheduled across all cores automatically via an M:N scheduler. Use them for almost everything. Only reach for Native OS Threads when you need explicit OS-level synchronization primitives like Mutexes or Condition variables.
             </DocCallout>
           </div>
         </DocBlock>
@@ -385,6 +334,7 @@ function main() {
             items={[
               "Minor GC copies live young objects into survivor space and promotes values that survive enough cycles.",
               "Major GC clears marks, marks from roots, computes new addresses, updates pointers, compacts old generation, and sweeps large-object entries.",
+              "Dynamic GC triggers at a flexible 60% heap threshold (bypassing old 512MB limits) with robust Out Of Memory (OOM) fatal protection.",
               "Pointer arrays and non-pointer arrays are scanned differently for correctness and speed.",
               "A card-table write barrier tracks old-to-young references so minor GC cannot miss young objects reachable from the old generation.",
             ]}
@@ -413,13 +363,13 @@ function main() {
               {
                 title: "Task queue entries",
                 description:
-                  "Async callbacks waiting to resume are considered roots while they sit in the event loop queue.",
+                  "Deferred task and timer callbacks waiting to resume are considered roots while they sit in the queue.",
                 tone: "green",
               },
               {
                 title: "Global handles",
                 description:
-                  "Background async work stores stable handle IDs so resumed tasks can resolve the moved object after collection.",
+                  "Background worker tasks store stable handle IDs so resumed tasks can resolve the moved object after collection.",
                 tone: "amber",
               },
             ]}
@@ -430,7 +380,7 @@ function main() {
               rows={[
                 ["Active stack frame", "Prevents locals still in use from being moved out from under running code."],
                 ["Static/global root", "Keeps long-lived runtime values reachable across the whole program."],
-                ["Queued async task", "Preserves captured values until the callback resumes."],
+                ["Queued task/timer", "Preserves captured values until the callback resumes."],
                 ["Global handle table", "Lets background services refer back to moved managed objects safely."],
               ]}
             />
@@ -445,7 +395,9 @@ function main() {
     icon: Server,
     subsections: [
       { id: "fs", title: "std:fs" },
+      { id: "http", title: "std:http" },
       { id: "net", title: "std:net" },
+      { id: "crypto", title: "std:crypto" },
       { id: "json", title: "std:json" },
       { id: "time", title: "std:time" },
       { id: "system-math", title: "std:system & std:math" },
@@ -457,9 +409,11 @@ function main() {
           description={
             <>
               The standard library is split between implicit core helpers and
-              opt-in <Inline>std:</Inline> modules. The most common modules
-              cover files, networking, JSON, timing, threads, collections,
-              environment access, and math utilities.
+              opt-in <Inline>std:</Inline> modules. Key modules include
+              filesystem (<Inline>std:fs</Inline>), HTTP server & client (<Inline>std:http</Inline>),
+              TCP networking (<Inline>std:net</Inline>), cryptography (<Inline>std:crypto</Inline>),
+              JSON (<Inline>std:json</Inline>), timing (<Inline>std:time</Inline>),
+              system utilities (<Inline>std:system</Inline>), and math (<Inline>std:math</Inline>).
             </>
           }
         />
@@ -467,43 +421,97 @@ function main() {
         <DocBlock
           id="fs"
           title="std:fs"
-          description="File-system helpers are imported as named functions from the std:fs module."
+          description="File-system helpers are imported as named functions directly from the std:fs module or accessed via the fs namespace."
         >
-            <CodeBlock
-              filename="fs.tx"
-              code={`import {
-    appendFileSync,
-    existsSync,
-    readFileSync,
-    readdirSync,
-    writeFileSync
+          <CodeBlock
+            filename="fs.tx"
+            code={`import {
+    readFile,
+    writeFile,
+    appendFile,
+    exists,
+    readdir,
+    remove
 } from "std:fs";
 
-function main() {
-    writeFileSync("config.tx", "DEBUG=true");
-    appendFileSync("config.tx", "\\nPORT=8080");
+function main(): void {
+    writeFile("config.txt", "PORT=8080\\n");
+    appendFile("config.txt", "DEBUG=true\\n");
 
-    let content = readFileSync("config.tx");
+    let content = readFile("config.txt");
     print(content);
 
-    if (existsSync(".")) {
-        let files = readdirSync(".");
-        print(files.length());
+    if (exists(".")) {
+        let entries = readdir(".");
+        print("Total files:", entries.length());
     }
 }`}
-            />
+          />
           <DocRuleList
             items={[
-              "Use sync file helpers for straightforward scripts and startup/config loading.",
+              "Canonical helpers: readFile(path), writeFile(path, content), appendFile(path, content), exists(path), remove(path), mkdir(path), readdir(path).",
+              "Also available via the export namespace fs: fs.readFile, fs.writeFile, etc.",
               "Directory reads return string arrays, so standard array operations apply immediately.",
-              "The browser playground provides a virtual in-memory file system for std:fs examples rather than your real disk.",
+              "The browser playground provides an in-memory virtual file system for safe client-side execution.",
             ]}
           />
           <div className="mt-5">
-            <DocCallout title="Use named std imports">
+            <DocCallout title="Clean named imports">
               Use the <Inline>std:</Inline> prefix for standard-library modules
-              and import the functions you need directly, for example{" "}
-              <Inline>{'import { readFileSync } from "std:fs";'}</Inline>.
+              and import the functions you need directly:{" "}
+              <Inline>{'import { readFile, writeFile } from "std:fs";'}</Inline>.
+            </DocCallout>
+          </div>
+        </DocBlock>
+
+        <DocBlock
+          id="http"
+          title="std:http"
+          description="High-performance HTTP server with route handlers and asynchronous fetch client."
+        >
+          <CodeBlock
+            filename="http_server.tx"
+            code={`import { HttpServer, ServerRequest, ServerResponse, fetch } from "std:http";
+
+function main(): void {
+    let app = new HttpServer();
+
+    // Fast routing with typed Request and Response
+    app.get("/", function(req: ServerRequest, res: ServerResponse): void {
+        res.json({
+            "status": "ok",
+            "message": "Hello from TejX!"
+        });
+    });
+
+    app.post("/api/echo", function(req: ServerRequest, res: ServerResponse): void {
+        res.status(200).json({
+            "received": req.body,
+            "path": req.path
+        });
+    });
+
+    app.listen(8080, () => {
+        print("Server running at http://127.0.0.1:8080");
+    });
+}`}
+            playgroundCode={`import { fetch } from "std:http";
+
+function main(): void {
+    print("HTTP client and server ready.");
+}`}
+          />
+          <DocRuleList
+            items={[
+              "HttpServer provides expressive routing: app.get(path, handler), app.post(), app.put(), app.delete(), app.all().",
+              "ServerRequest provides req.method, req.path, req.body, req.header(name).",
+              "ServerResponse provides res.status(code), res.setHeader(k, v), res.json(data), res.send(text), res.html(str), res.end().",
+              "fetch(url, options?) performs HTTP/HTTPS client requests returning typed Response objects.",
+            ]}
+          />
+          <div className="mt-5">
+            <DocCallout title="Concurrency Under Load" tone="green">
+              TejX HTTP servers leverage lightweight virtual threads to handle thousands of requests per second concurrently without manual thread management.
             </DocCallout>
           </div>
         </DocBlock>
@@ -511,40 +519,69 @@ function main() {
         <DocBlock
           id="net"
           title="std:net"
-          description="Networking exposes low-level TCP helpers plus sync and async HTTP namespaces."
+          description="Low-level TCP networking with stream sockets and listeners."
         >
           <CodeBlock
             filename="net.tx"
-            code={`import { http, net } from "std:net";
+            code={`import { connect, listen, TcpListener, TcpStream } from "std:net";
 
-async function main(): Promise<void> {
-    let body = await http.get("https://example.com");
-    print(body.length());
+function main(): void {
+    // Start a raw TCP listener
+    let server: TcpListener = listen("127.0.0.1:9000");
 
-    let stream = net.connect("127.0.0.1:9000");
-    if (stream != None) {
-        stream.send("ping");
-        print(stream.receive(128));
+    // Connect as a client
+    let client: Optional<TcpStream> = connect("127.0.0.1:9000");
+    if (client != None) {
+        let stream = client as TcpStream;
+        stream.write("PING\\n");
         stream.close();
     }
-}`}
-            playgroundCode={`function fakeGet(_url: string): string {
-    return "example response";
-}
 
-function main() {
-    let body = fakeGet("https://example.com");
-    print(body.length());
-    print("pong");
+    server.close();
 }`}
           />
           <div className="mt-5">
-            <DocCallout title="Two network layers" tone="green">
-              <Inline>http</Inline> covers request/response workflows, while{" "}
-              <Inline>net</Inline> gives you lower-level stream-style TCP
-              access when you need custom protocols.
+            <DocCallout title="TCP Networking" tone="green">
+              <Inline>std:net</Inline> provides direct access to TCP sockets (<Inline>TcpStream</Inline>) and listeners (<Inline>TcpListener</Inline>) for custom protocol development.
             </DocCallout>
           </div>
+        </DocBlock>
+
+        <DocBlock
+          id="crypto"
+          title="std:crypto"
+          description="Cryptographic hash functions, HMAC authentication, random bytes, and UUIDs."
+        >
+          <CodeBlock
+            filename="crypto.tx"
+            code={`import {
+    sha256,
+    sha512,
+    md5,
+    hmacSha256,
+    randomBytes,
+    randomUUID
+} from "std:crypto";
+
+function main(): void {
+    let hash = sha256("password123");
+    print("SHA-256:", hash);
+
+    let hmac = hmacSha256("payload", "secret-key");
+    print("HMAC:", hmac);
+
+    let id = randomUUID();
+    print("UUID:", id);
+}`}
+          />
+          <DocRuleList
+            items={[
+              "sha256(data) / sha512(data) / md5(data): Fast cryptographic hashing returning hex strings.",
+              "hmacSha256(data, key): Message authentication code generation with a secret key.",
+              "randomUUID(): Generates RFC 4122 v4 UUID strings.",
+              "randomBytes(length): Cryptographically secure random byte sequences.",
+            ]}
+          />
         </DocBlock>
 
         <DocBlock
@@ -594,25 +631,23 @@ function main() {
         <DocBlock
           id="time"
           title="std:time"
-          description="Time helpers cover synchronous sleep, async delay, timers, and a lightweight Date wrapper."
+          description="Time helpers cover synchronous sleep, timers, and a lightweight Date wrapper."
         >
           <CodeBlock
             filename="time.tx"
             code={`import {
     now,
     sleep,
-    delay,
     setTimeout,
     clearTimeout,
     Date
 } from "std:time";
 
-async function main(): Promise<void> {
+function main(): void {
     let timer = setTimeout(() => print("later"), 10);
 
     print(now() > 0);
     sleep(1);
-    await delay(1);
     clearTimeout(timer);
 
     let d = new Date();
@@ -629,9 +664,9 @@ function main() {
           />
           <DocRuleList
             items={[
-              "Use `sleep` only when blocking the current thread is acceptable.",
-              "Prefer `delay` in async code so the event loop can keep progressing.",
-              "Timer IDs from `setTimeout` and `setInterval` can be canceled explicitly when work is no longer needed.",
+              "Use `now()` to get the current timestamp in milliseconds.",
+              "Use `sleep` to pause the current thread.",
+              "Timer IDs from `setTimeout` and `setInterval` can be canceled explicitly with `clearTimeout` / `clearInterval`.",
             ]}
           />
         </DocBlock>
@@ -639,19 +674,21 @@ function main() {
         <DocBlock
           id="system-math"
           title="std:system & std:math"
-          description="Process arguments, environment values, exits, and common math utilities are split into focused modules."
+          description="Process arguments, environment values, system metadata, exits, and common math utilities."
         >
           <CodeBlock
             filename="system_math.tx"
-            code={`import { args, env } from "std:system";
-import { sqrt, pow, random, round } from "std:math";
+            code={`import { args, env, getenv, cpus, platform, arch, cwd, uptime } from "std:system";
+import { sqrt, pow, random, round, abs } from "std:math";
 
 function main() {
     let argv = args();
-    let home = env("HOME");
+    print("Arguments count:", argv.length());
+    print("Platform:", platform(), "CPUs:", cpus(), "Arch:", arch());
 
-    print(argv.length());
-    print(home);
+    let home = getenv("HOME");
+    print("Home:", home);
+
     print(sqrt(81.0));
     print(pow(2.0, 10.0));
     print(round(random() * 10.0));
@@ -660,13 +697,13 @@ function main() {
           <DocTable
             headers={["Module", "Examples"]}
             rows={[
-              [<Inline>std:system</Inline>, "args(), argv(), env(key), getEnv(key), exit(code)"],
-              [<Inline>std:math</Inline>, "abs, min, max, sin, cos, sqrt, floor, ceil, round, pow, random"],
+              [<Inline>std:system</Inline>, "args(), env(), getenv(key), setenv(k,v), cwd(), exit(code), exec(cmd), pid(), cpus(), platform(), arch(), uptime()"],
+              [<Inline>std:math</Inline>, "abs, min, max, sin, cos, sqrt, floor, ceil, round, pow, random, randomInt"],
             ]}
           />
           <DocRuleList
             items={[
-              "std:system exports exit(code), env(key), args(), and aliases argv() / getEnv().",
+              "std:system exports exit(code), env(), getenv(key), setenv(key, val), cwd(), args(), cpus(), platform(), arch(), uptime(), exec(command).",
               "std:math exports abs, min, max, sin, cos, sqrt, floor, ceil, round, pow, and random.",
               "Collections and threading modules are covered in the data-structures and concurrency sections because they are large enough to deserve dedicated treatment.",
             ]}
