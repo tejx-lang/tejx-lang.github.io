@@ -426,12 +426,28 @@ function __tejx_browser_fs_readdirSync(path: string): string[] {
     return rt_fs_readdir_sync(path);
 }
 
-async function __tejx_browser_fs_readFile(path: string): Promise<string> {
+function __tejx_browser_fs_readFile(path: string): string {
     return __tejx_browser_fs_readFileSync(path);
 }
 
-async function __tejx_browser_fs_writeFile(path: string, content: string): Promise<bool> {
+function __tejx_browser_fs_writeFile(path: string, content: string): bool {
     return __tejx_browser_fs_writeFileSync(path, content);
+}
+
+function __tejx_browser_fs_exists(path: string): bool {
+    return __tejx_browser_fs_existsSync(path);
+}
+
+function __tejx_browser_fs_appendFile(path: string, content: string): bool {
+    return __tejx_browser_fs_appendFileSync(path, content);
+}
+
+function __tejx_browser_fs_remove(path: string): bool {
+    return __tejx_browser_fs_unlinkSync(path);
+}
+
+function __tejx_browser_fs_readdir(path: string): string[] {
+    return __tejx_browser_fs_readdirSync(path);
 }
 
 function __tejx_browser_fs_read_to_string(path: string): string {
@@ -443,15 +459,21 @@ function __tejx_browser_fs_mkdir(path: string): bool {
 }`;
 
 const STD_FS_NAMESPACE_MEMBERS = {
+  exists: "__tejx_browser_fs_exists",
   existsSync: "__tejx_browser_fs_existsSync",
-  readFileSync: "__tejx_browser_fs_readFileSync",
-  writeFileSync: "__tejx_browser_fs_writeFileSync",
-  appendFileSync: "__tejx_browser_fs_appendFileSync",
-  unlinkSync: "__tejx_browser_fs_unlinkSync",
-  mkdirSync: "__tejx_browser_fs_mkdirSync",
-  readdirSync: "__tejx_browser_fs_readdirSync",
   readFile: "__tejx_browser_fs_readFile",
+  readFileSync: "__tejx_browser_fs_readFileSync",
   writeFile: "__tejx_browser_fs_writeFile",
+  writeFileSync: "__tejx_browser_fs_writeFileSync",
+  appendFile: "__tejx_browser_fs_appendFile",
+  appendFileSync: "__tejx_browser_fs_appendFileSync",
+  remove: "__tejx_browser_fs_remove",
+  unlink: "__tejx_browser_fs_remove",
+  unlinkSync: "__tejx_browser_fs_unlinkSync",
+  mkdir: "__tejx_browser_fs_mkdir",
+  mkdirSync: "__tejx_browser_fs_mkdirSync",
+  readdir: "__tejx_browser_fs_readdir",
+  readdirSync: "__tejx_browser_fs_readdirSync",
 } as const;
 
 const DECIMAL_LITERAL_PATTERN = /\b\d+\.\d+(?:[eE][+-]?\d+)?\b/;
@@ -527,28 +549,37 @@ function buildBrowserStdJsonAlias(imported: string, local: string) {
 
 function buildBrowserStdFsAlias(imported: string, local: string) {
   switch (imported) {
+    case "exists":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_exists(path); }`;
     case "existsSync":
       return `function ${local}(path: string): bool { return __tejx_browser_fs_existsSync(path); }`;
+    case "readFile":
+      return `function ${local}(path: string): string { return __tejx_browser_fs_readFile(path); }`;
     case "readFileSync":
       return `function ${local}(path: string): string { return __tejx_browser_fs_readFileSync(path); }`;
+    case "writeFile":
+      return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_writeFile(path, content); }`;
     case "writeFileSync":
       return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_writeFileSync(path, content); }`;
+    case "appendFile":
+      return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_appendFile(path, content); }`;
     case "appendFileSync":
       return `function ${local}(path: string, content: string): bool { return __tejx_browser_fs_appendFileSync(path, content); }`;
+    case "remove":
+    case "unlink":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_remove(path); }`;
     case "unlinkSync":
       return `function ${local}(path: string): bool { return __tejx_browser_fs_unlinkSync(path); }`;
-    case "mkdirSync":
-      return `function ${local}(path: string): bool { return __tejx_browser_fs_mkdirSync(path); }`;
-    case "readdirSync":
-      return `function ${local}(path: string): string[] { return __tejx_browser_fs_readdirSync(path); }`;
-    case "readFile":
-      return `async function ${local}(path: string): Promise<string> { return __tejx_browser_fs_readFile(path); }`;
-    case "writeFile":
-      return `async function ${local}(path: string, content: string): Promise<bool> { return __tejx_browser_fs_writeFile(path, content); }`;
-    case "read_to_string":
-      return `function ${local}(path: string): string { return __tejx_browser_fs_read_to_string(path); }`;
     case "mkdir":
       return `function ${local}(path: string): bool { return __tejx_browser_fs_mkdir(path); }`;
+    case "mkdirSync":
+      return `function ${local}(path: string): bool { return __tejx_browser_fs_mkdirSync(path); }`;
+    case "readdir":
+      return `function ${local}(path: string): string[] { return __tejx_browser_fs_readdir(path); }`;
+    case "readdirSync":
+      return `function ${local}(path: string): string[] { return __tejx_browser_fs_readdirSync(path); }`;
+    case "read_to_string":
+      return `function ${local}(path: string): string { return __tejx_browser_fs_read_to_string(path); }`;
     default:
       return null;
   }
@@ -835,11 +866,26 @@ function createJsFallbackStdFs() {
 
       return [...entries];
     },
-    async readFile(path: string) {
+    readFile(path: string) {
       return this.readFileSync(path);
     },
-    async writeFile(path: string, content: string) {
+    writeFile(path: string, content: string) {
       return this.writeFileSync(path, content);
+    },
+    exists(path: string) {
+      return this.existsSync(path);
+    },
+    appendFile(path: string, content: string) {
+      return this.appendFileSync(path, content);
+    },
+    remove(path: string) {
+      return this.unlinkSync(path);
+    },
+    unlink(path: string) {
+      return this.unlinkSync(path);
+    },
+    readdir(path: string) {
+      return this.readdirSync(path);
     },
     read_to_string(path: string) {
       return this.readFileSync(path);
@@ -1071,7 +1117,7 @@ function normalizeJsFallbackMethodModifiers(modifiers: string) {
   const kept = modifiers
     .trim()
     .split(/\s+/)
-    .filter((modifier) => modifier === "static" || modifier === "async");
+    .filter((modifier) => modifier === "static");
 
   return kept.length > 0 ? `${kept.join(" ")} ` : "";
 }
@@ -1147,7 +1193,7 @@ function transpileJsFallbackSource(source: string) {
       "class $1",
     )
     .replace(
-      /^([ \t]*)((?:(?:public|private|protected|static|async)\s+)*)constructor\s*\(([\s\S]*?)\)\s*\{/gm,
+      /^([ \t]*)((?:(?:public|private|protected|static)\s+)*)constructor\s*\(([\s\S]*?)\)\s*\{/gm,
       (
         _match: string,
         indent: string,
@@ -1159,7 +1205,7 @@ function transpileJsFallbackSource(source: string) {
         )}) {`,
     )
     .replace(
-      /^([ \t]*)((?:(?:public|private|protected|static|async)\s+)*)([A-Za-z_]\w*)\s*\(([\s\S]*?)\)\s*(?::\s*[A-Za-z_][\w<>, ?|:[\]]*)?\s*\{/gm,
+      /^([ \t]*)((?:(?:public|private|protected|static)\s+)*)([A-Za-z_]\w*)\s*\(([\s\S]*?)\)\s*(?::\s*[A-Za-z_][\w<>, ?|:[\]]*)?\s*\{/gm,
       (
         _match: string,
         indent: string,

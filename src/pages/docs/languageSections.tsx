@@ -70,7 +70,7 @@ export const languageSections: DocSection[] = [
               {
                 title: "Two concurrency models",
                 description:
-                  "Async/await handles latency-bound workflows on the event loop, while std:thread exposes true OS threads for CPU-bound parallel work.",
+                  "An M:N work-stealing scheduler orchestrates true parallel Promises, while std:thread exposes native OS threads for heavy work.",
                 tone: "amber",
               },
             ]}
@@ -98,11 +98,11 @@ export const languageSections: DocSection[] = [
               ],
               [
                 "Memory",
-                "Moving GC with explicit roots and async-safe handles",
+                "Moving GC with explicit roots and thread-safe handles",
               ],
               [
                 "Concurrency",
-                "Event-loop async plus native threads with synchronization primitives",
+                "M:N scheduled Promises plus native threads with synchronization primitives",
               ],
             ]}
           />
@@ -148,9 +148,11 @@ export const languageSections: DocSection[] = [
     icon: Zap,
     subsections: [
       { id: "install", title: "Quick Install" },
+      { id: "extension", title: "VS Code Suite" },
       { id: "init", title: "Setup Project" },
       { id: "example", title: "Create Example" },
       { id: "run", title: "Build & Run" },
+      { id: "uninstall", title: "Uninstall" },
     ],
     content: <GetStarted />,
   },
@@ -807,7 +809,7 @@ function main() {
             <>
               Parameter counts, argument types, return types, and higher-order
               function signatures are checked at compile time. Lambdas, generic
-              functions, and async functions all build on that same typed model.
+              functions all build on that same typed model.
             </>
           }
         />
@@ -911,7 +913,7 @@ function main() {
           <DocCallout title="Entry point requirement">
             Every standalone TejX program needs a{" "}
             <Inline>function main()</Inline> entry point. Async programs use{" "}
-            <Inline>async function main(): Promise&lt;void&gt;</Inline>.
+            <Inline>function main(): void</Inline>.
           </DocCallout>
         </DocBlock>
       </>
@@ -1466,16 +1468,16 @@ function main() {
             filename="main.tx"
             code={`import mul, { add, PI } from "./math.tx";
 import { now } from "std:time";
-import { existsSync } from "std:fs";
+import { exists } from "std:fs";
 
 function main() {
     print(add(10, 20));
     print(mul(5, 5));
     print(PI);
     print(now() > 0);
-    print(existsSync("main.tx"));
+    print(exists("main.tx"));
 }`}
-            playgroundCode={`import { existsSync, writeFileSync } from "std:fs";
+            playgroundCode={`import { exists, writeFile } from "std:fs";
 import { now } from "std:time";
 
 function add(a: int, b: int): int {
@@ -1489,20 +1491,20 @@ function mul(a: int, b: int): int {
 }
 
 function main() {
-    writeFileSync("main.tx", "demo");
+    writeFile("main.tx", "demo");
 
     print(add(10, 20));
     print(mul(5, 5));
     print(PI);
     print(now() > 0);
-    print(existsSync("main.tx"));
+    print(exists("main.tx"));
 }`}
           />
           <div className="mt-5">
             <DocCallout title="Correct std module paths">
               TejX standard-library modules use the <Inline>std:</Inline>{" "}
               prefix. Import functions directly, for example{" "}
-              <Inline>{'import { readFileSync } from "std:fs";'}</Inline>.
+              <Inline>{'import { readFile } from "std:fs";'}</Inline>.
             </DocCallout>
           </div>
         </DocBlock>
@@ -1523,7 +1525,7 @@ function main() {
               ],
               [
                 <>
-                  <Inline>std:time</Inline> or <Inline>std:collections</Inline>
+                  <Inline>std:time</Inline>, <Inline>std:http</Inline>, or <Inline>std:collections</Inline>
                 </>,
                 <>
                   Resolved from the configured stdlib root in this order:{" "}

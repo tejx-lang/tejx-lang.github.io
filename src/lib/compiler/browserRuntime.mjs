@@ -25,8 +25,8 @@ const SHARED_BROWSER_FS = new Map([
 export class TejxProgramHost {
   constructor(options = {}) {
     this.memory = new WebAssembly.Memory({ initial: options.memoryPages ?? 32 });
-    this.onOutput = options.onOutput ?? (() => {});
-    this.onLog = options.onLog ?? (() => {});
+    this.onOutput = options.onOutput ?? (() => { });
+    this.onLog = options.onLog ?? (() => { });
     this.heap = new Map();
     this.stringHandles = new Map();
     this.nextHandle = HANDLE_BASE;

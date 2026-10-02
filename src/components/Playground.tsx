@@ -18,7 +18,7 @@ const DEFAULT_CODE = `function main() {
 
     let obj = {
         name: "TejX",
-        version: "1.0.0",
+        version: "1.0.7",
         is_awesome: true
     };
     print("Object support:", obj);
