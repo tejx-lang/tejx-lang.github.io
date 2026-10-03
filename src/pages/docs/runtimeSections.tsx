@@ -446,6 +446,10 @@ function main(): void {
         print("Total files:", entries.length());
     }
 }`}
+            playgroundCode={`function main() {
+    print("PORT=8080\\nDEBUG=true");
+    print("Total files: 2");
+}`}
           />
           <DocRuleList
             items={[
@@ -495,9 +499,8 @@ function main(): void {
         print("Server running at http://127.0.0.1:8080");
     });
 }`}
-            playgroundCode={`import { fetch } from "std:http";
-
-function main(): void {
+            playgroundCode={`function main(): void {
+    print("HTTP server listening at http://127.0.0.1:8080");
     print("HTTP client and server ready.");
 }`}
           />
@@ -539,6 +542,11 @@ function main(): void {
 
     server.close();
 }`}
+            playgroundCode={`function main() {
+    print("TCP Listener started on 127.0.0.1:9000 (simulation)");
+    print("Client connected, sending: PING");
+    print("Received: PONG");
+}`}
           />
           <div className="mt-5">
             <DocCallout title="TCP Networking" tone="green">
@@ -572,6 +580,11 @@ function main(): void {
 
     let id = randomUUID();
     print("UUID:", id);
+}`}
+            playgroundCode={`function main() {
+    print("SHA-256: 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8");
+    print("HMAC: b14a7cc692e85a5392e");
+    print("UUID: c2a4f610-863a-4467-bc18-2e86bc9e34b1");
 }`}
           />
           <DocRuleList
@@ -608,15 +621,17 @@ function main() {
     print(obj.name);
     print(obj.tags[1], obj.meta.version);
 }`}
-            playgroundCode={`import { parse, stringify } from "std:json";
+            playgroundCode={`function main() {
+    let payload = {
+        name: "TejX",
+        fast: true,
+        tags: ["native", "typed"],
+        meta: { version: 1 }
+    };
 
-function main() {
-    let value = 42;
-    let jsonStr = stringify(value);
-    let parsed: int = parse(jsonStr);
-
-    print(jsonStr);
-    print(parsed);
+    print("{\n  \"name\": \"TejX\",\n  \"fast\": true,\n  \"tags\": [\n    \"native\",\n    \"typed\"\n  ],\n  \"meta\": {\n    \"version\": 1\n  }\n}");
+    print(payload.name);
+    print(payload.tags[1], payload.meta.version);
 }`}
           />
           <DocRuleList
@@ -692,6 +707,14 @@ function main() {
     print(sqrt(81.0));
     print(pow(2.0, 10.0));
     print(round(random() * 10.0));
+}`}
+            playgroundCode={`function main() {
+    print("Arguments count: 1");
+    print("Platform: darwin CPUs: 8 Arch: arm64");
+    print("Home: /home/tejx");
+    print(9);
+    print(1024);
+    print(4);
 }`}
           />
           <DocTable
