@@ -232,6 +232,32 @@ verify() {
         update_path
         echo ""
 
+        # Check C/LLVM compiler presence
+        if ! command -v clang >/dev/null 2>&1 && ! command -v cc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
+            warn "No C/LLVM compiler (clang, gcc) detected."
+            info "TejX requires Clang to compile and link native executables."
+            if [ "$OS" = "linux" ]; then
+                if command -v apt-get >/dev/null 2>&1; then
+                    printf "  ${BOLD}Install with:${RESET} sudo apt-get update && sudo apt-get install -y clang build-essential libssl-dev\n"
+                elif command -v dnf >/dev/null 2>&1; then
+                    printf "  ${BOLD}Install with:${RESET} sudo dnf install -y clang gcc openssl-devel\n"
+                elif command -v pacman >/dev/null 2>&1; then
+                    printf "  ${BOLD}Install with:${RESET} sudo pacman -S clang base-devel openssl\n"
+                elif command -v apk >/dev/null 2>&1; then
+                    printf "  ${BOLD}Install with:${RESET} sudo apk add clang build-base openssl-dev\n"
+                fi
+            elif [ "$OS" = "macos" ]; then
+                printf "  ${BOLD}Install with:${RESET} xcode-select --install\n"
+            fi
+            echo ""
+        elif [ "$OS" = "linux" ] && ! command -v clang >/dev/null 2>&1; then
+            warn "Clang not detected. GCC was found, but Clang is strongly recommended for TejX."
+            if command -v apt-get >/dev/null 2>&1; then
+                printf "  ${BOLD}Install Clang:${RESET} sudo apt-get update && sudo apt-get install -y clang\n"
+            fi
+            echo ""
+        fi
+
         printf "  ${CYAN}Get started:${RESET}\n"
         printf "    ${BOLD}\$${RESET} tejxc main.tx && ./main\n"
         echo ""
