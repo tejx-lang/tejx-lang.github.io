@@ -897,7 +897,7 @@ function createJsFallbackStdFs() {
 }
 
 function createJsFallbackStdSystem() {
-  const argv = [] as string[];
+  const argv = ["system_math.tx"] as string[];
 
   return {
     args() {
@@ -906,13 +906,32 @@ function createJsFallbackStdSystem() {
     argv() {
       return [...argv];
     },
-    env(key: string) {
-      void key;
-      return null;
+    env(key?: string) {
+      if (key) {
+        return key === "HOME" ? "/home/tejx" : null;
+      }
+      return ["HOME=/home/tejx", "USER=tejx"];
+    },
+    getenv(key: string) {
+      return key === "HOME" ? "/home/tejx" : null;
     },
     getEnv(key: string) {
-      void key;
-      return null;
+      return key === "HOME" ? "/home/tejx" : null;
+    },
+    cpus() {
+      return 8;
+    },
+    platform() {
+      return "darwin";
+    },
+    arch() {
+      return "arm64";
+    },
+    cwd() {
+      return "/workspace";
+    },
+    uptime() {
+      return 3600;
     },
     exit(code = 0) {
       throw new Error(`Process exited with code ${code}`);

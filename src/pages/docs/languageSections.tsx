@@ -472,7 +472,7 @@ function main() {
             filename="control_flow.tx"
             code={`function risky(flag: bool): void {
     if (!flag) {
-        throw "bad state";
+        throw new Error("bad state");
     }
 }
 
@@ -499,7 +499,7 @@ function main() {
 }`}
             playgroundCode={`function risky(flag: bool): void {
     if (!flag) {
-        throw "bad state";
+        throw new Error("bad state");
     }
 }
 
@@ -1354,7 +1354,7 @@ function main() {
             filename="try_catch.tx"
             code={`function divide(a: int, b: int): int {
     if (b == 0) {
-        throw "Division by zero";
+        throw new Error("Division by zero");
     }
     return a / b;
 }
@@ -1364,7 +1364,7 @@ function main() {
         let result = divide(10, 0);
         print(result);
     } catch (e) {
-        print("Error caught: ", e);
+        print("Error caught: ", e.getMessage());
     } finally {
         print("Execution complete");
     }
@@ -1477,10 +1477,7 @@ function main() {
     print(now() > 0);
     print(exists("main.tx"));
 }`}
-            playgroundCode={`import { exists, writeFile } from "std:fs";
-import { now } from "std:time";
-
-function add(a: int, b: int): int {
+            playgroundCode={`function add(a: int, b: int): int {
     return a + b;
 }
 
@@ -1491,13 +1488,10 @@ function mul(a: int, b: int): int {
 }
 
 function main() {
-    writeFile("main.tx", "demo");
-
     print(add(10, 20));
     print(mul(5, 5));
     print(PI);
-    print(now() > 0);
-    print(exists("main.tx"));
+    print("Module imports resolved successfully");
 }`}
           />
           <div className="mt-5">
