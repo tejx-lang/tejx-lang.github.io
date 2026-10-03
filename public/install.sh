@@ -83,7 +83,7 @@ find_binary() {
 }
 
 find_runtime() {
-    FOUND="$(find "$TMP_DIR" -name "$RUNTIME_NAME" -type f 2>/dev/null | head -1)"
+    FOUND="$(find "$TMP_DIR" \( -name "$RUNTIME_NAME" -o -name "libtejx_rt.a" \) -type f 2>/dev/null | head -1)"
     if [ -z "$FOUND" ]; then
         error "Could not find ${RUNTIME_NAME} in the downloaded archive."
     fi
@@ -93,6 +93,7 @@ find_runtime() {
 find_stdlib_dir() {
     # Prefer 'lib/' as seen in release structure
     for DIR in \
+        "$TMP_DIR/tejx/lib" \
         "$TMP_DIR/lib" \
         "$TMP_DIR/library" \
         "$TMP_DIR/src/library"
@@ -155,20 +156,29 @@ install_release() {
 
 # ── PATH Configuration ──
 update_path() {
-    local shell_config=""
+    shell_config=""
     
-    # Detect shell config file
-    if [[ "$SHELL" == */zsh ]]; then
-        shell_config="$HOME/.zshrc"
-    elif [[ "$SHELL" == */bash ]]; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            shell_config="$HOME/.bash_profile"
-        else
-            shell_config="$HOME/.bashrc"
-        fi
-    fi
+    # Detect shell config file using POSIX case patterns
+    case "$SHELL" in
+        */zsh)
+            shell_config="$HOME/.zshrc"
+            ;;
+        */bash)
+            case "$(uname -s)" in
+                Darwin) shell_config="$HOME/.bash_profile" ;;
+                *)      shell_config="$HOME/.bashrc" ;;
+            esac
+            ;;
+        *)
+            if [ -f "$HOME/.zshrc" ]; then shell_config="$HOME/.zshrc"
+            elif [ -f "$HOME/.bash_profile" ]; then shell_config="$HOME/.bash_profile"
+            elif [ -f "$HOME/.bashrc" ]; then shell_config="$HOME/.bashrc"
+            else shell_config="$HOME/.profile"
+            fi
+            ;;
+    esac
     
-    # Fallback to .profile if specific shell config not found
+    # Fallback to existing config or .profile
     if [ -z "$shell_config" ] || [ ! -f "$shell_config" ]; then
         if [ -f "$HOME/.zshrc" ]; then shell_config="$HOME/.zshrc"
         elif [ -f "$HOME/.bash_profile" ]; then shell_config="$HOME/.bash_profile"
@@ -182,7 +192,7 @@ update_path() {
 
     # Check current session PATH first
     case ":$PATH:" in
-        *":$BIN_DIR:"*|*":\$HOME/.tejx/bin:"*) 
+        *":$BIN_DIR:"*|*":\$HOME/.tejx/bin:"*|*":$HOME/.tejx/bin:"*) 
             printf "${CYAN}➜${RESET} TejX is already in your session PATH\n"
             return 0
             ;;
@@ -195,7 +205,6 @@ update_path() {
     fi
 
     # Add to config
-    touch "$shell_config"
     echo "" >> "$shell_config"
     echo "# TejX Toolchain" >> "$shell_config"
     echo "export PATH=\"\$HOME/.tejx/bin:\$PATH\"" >> "$shell_config"
