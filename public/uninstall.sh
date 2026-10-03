@@ -28,24 +28,28 @@ main() {
     echo "  ───────────────────────────"
     echo ""
 
-    if [ ! -d "$TEJX_DIR" ]; then
-        error "TejX installation not found at ${TEJX_DIR}"
-    fi
-
-    info "Removing TejX toolchain from ${TEJX_DIR}..."
-
-    rm -rf "$TEJX_DIR"
-
     if [ -d "$TEJX_DIR" ]; then
-        error "Failed to completely remove the TejX toolchain."
+        info "Removing TejX toolchain from ${TEJX_DIR}..."
+        rm -rf "$TEJX_DIR"
+        if [ -d "$TEJX_DIR" ]; then
+            error "Failed to completely remove the TejX directory ${TEJX_DIR}."
+        fi
+    else
+        warn "TejX directory not found at ${TEJX_DIR}."
     fi
+
+    info "Removing extension links..."
+    rm -f "$HOME/.vscode/extensions/tejx-antigravity" 2>/dev/null || true
+    rm -f "$HOME/.antigravity/extensions/tejx-antigravity" 2>/dev/null || true
 
     info "Removing from PATH..."
     for config in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
         if [ -f "$config" ]; then
-            # Remove the lines added by install.sh
-            sed -i '' '/# TejX Toolchain/d' "$config" 2>/dev/null || sed -i '/# TejX Toolchain/d' "$config"
-            sed -i '' '/\.tejx\/bin/d' "$config" 2>/dev/null || sed -i '/\.tejx\/bin/d' "$config"
+            if grep -q "\.tejx/bin" "$config" 2>/dev/null || grep -q "# TejX Toolchain" "$config" 2>/dev/null; then
+                TMP_CONFIG="$(mktemp)"
+                grep -v '# TejX Toolchain' "$config" | grep -v '\.tejx/bin' > "$TMP_CONFIG" && cat "$TMP_CONFIG" > "$config"
+                rm -f "$TMP_CONFIG"
+            fi
         fi
     done
 
